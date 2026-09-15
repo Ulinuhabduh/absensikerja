@@ -61,6 +61,53 @@ function ringkasanBulan(data, bulan, gajiPokok) {
   };
 }
 
+const PTKP = {
+  'TK/0': 54000000,
+  'TK/1': 58500000,
+  'TK/2': 63000000,
+  'TK/3': 67500000,
+  'K/0': 58500000,
+  'K/1': 63000000,
+  'K/2': 67500000,
+  'K/3': 72000000,
+};
+
+const LAPISAN_PPH = [
+  [60000000, 0.05],
+  [250000000, 0.15],
+  [500000000, 0.25],
+  [5000000000, 0.30],
+  [Infinity, 0.35],
+];
+
+// Estimasi PPh 21 setahun: bruto - biaya jabatan 5% (maks 6jt) - JHT/JP - PTKP, tarif progresif
+function pph21Setahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
+  const biayaJabatan = Math.min(brutoSetahun * 0.05, 6000000);
+  const pkp = Math.floor(Math.max(0, brutoSetahun - biayaJabatan - potonganBpjsTkSetahun - ptkp) / 1000) * 1000;
+  if (pkp <= 0) return 0;
+  let pajak = 0, bawah = 0;
+  for (const [atas, tarif] of LAPISAN_PPH) {
+    const kena = Math.min(pkp, atas) - bawah;
+    if (kena > 0) pajak += kena * tarif;
+    if (pkp <= atas) break;
+    bawah = atas;
+  }
+  return pajak;
+}
+
+function hitungGaji(data, bulan, gajiPokok, ptkp) {
+  const s = ringkasanBulan(data, bulan, gajiPokok);
+  const bpjsTk = gajiPokok * 0.03;
+  const bpjsKes = gajiPokok * 0.01;
+  const pph = pph21Setahun(s.total * 12, bpjsTk * 12, PTKP[ptkp] || 0) / 12;
+  return Object.assign({}, s, {
+    bruto: s.total,
+    bpjsTk, bpjsKes, pph,
+    potongan: bpjsTk + bpjsKes + pph,
+    bersih: s.total - bpjsTk - bpjsKes - pph,
+  });
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, ringkasanBulan };
+  module.exports = { PEMBAGI_JAM, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, ringkasanBulan, pph21Setahun, hitungGaji };
 }

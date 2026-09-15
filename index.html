@@ -64,6 +64,9 @@ td.num,th.num{text-align:right}
 .summary .row span{color:var(--muted)}
 .summary .row.total{font-size:1.05rem;font-weight:800;border-top:1px dashed var(--line);margin-top:8px;padding-top:10px}
 .summary .row.total span{color:var(--text)}
+.summary .row.pot strong{font-weight:600;color:var(--red)}
+.summary .row.pot{border-top:1px dashed var(--line);padding-top:8px}
+.summary select{border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font-size:.82rem;font-family:inherit;background:#fff;color:var(--text)}
 .days{font-size:.78rem;color:var(--muted);margin-top:6px}
 </style>
 </head>
@@ -132,8 +135,25 @@ td.num,th.num{text-align:right}
       <div class="row"><span>Total jam lembur</span><strong id="sumJam">0 jam</strong></div>
       <div class="row"><span>Uang lembur</span><strong id="sumUang">Rp0</strong></div>
       <div class="row"><span>Gaji pokok<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
-      <div class="row total"><span>Estimasi gaji</span><strong id="sumTotal">Rp0</strong></div>
+      <div class="row"><span>Bruto</span><strong id="sumBruto">Rp0</strong></div>
+      <div class="row"><span>Status PTKP</span>
+        <select id="selPtkp">
+          <option value="TK/0">TK/0</option>
+          <option value="TK/1">TK/1</option>
+          <option value="TK/2">TK/2</option>
+          <option value="TK/3">TK/3</option>
+          <option value="K/0">K/0</option>
+          <option value="K/1">K/1</option>
+          <option value="K/2">K/2</option>
+          <option value="K/3">K/3</option>
+        </select>
+      </div>
+      <div class="row pot"><span>BPJS Ketenagakerjaan 3%</span><strong id="sumBpjsTk">-Rp0</strong></div>
+      <div class="row pot"><span>BPJS Kesehatan 1%</span><strong id="sumBpjsKes">-Rp0</strong></div>
+      <div class="row pot"><span>PPh 21</span><strong id="sumPph">-Rp0</strong></div>
+      <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
       <div class="days" id="sumHari"></div>
+      <p class="hint">Potongan BPJS dihitung dari gaji pokok. PPh 21 estimasi: bruto setahun &divide; 12, dikurangi biaya jabatan 5% (maks Rp6.000.000/tahun), JHT+JP 3%, dan PTKP, lalu tarif progresif.</p>
     </div>
   </section>
 
@@ -153,6 +173,7 @@ td.num,th.num{text-align:right}
 <script>
 const KEY = 'absensi-harian-v1';
 const KEY_GAJI = 'absensi-harian-gaji';
+const KEY_PTKP = 'absensi-harian-ptkp';
 
 const el = id => document.getElementById(id);
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -163,6 +184,7 @@ try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { data = {
 const save = () => localStorage.setItem(KEY, JSON.stringify(data));
 
 let gajiPokok = 0;
+let ptkp = 'TK/0';
 let manLembur = false;
 let manLibur = false;
 let viewMonth = todayKey().slice(0, 7);
@@ -229,12 +251,16 @@ function renderMonth() {
     tbody.appendChild(tr);
   }
 
-  const s = ringkasanBulan(data, viewMonth, gajiPokok);
-  el('sumJam').textContent = angka(s.jam) + ' jam';
-  el('sumUang').textContent = rupiah(s.uangLembur);
-  el('sumPokok').textContent = rupiah(s.gajiPokok);
-  el('sumTotal').textContent = rupiah(s.total);
-  el('sumHari').textContent = s.hariKerja + ' hari kerja · ' + s.hariLembur + ' lembur · ' + s.hariLibur + ' libur';
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp);
+  el('sumJam').textContent = angka(g.jam) + ' jam';
+  el('sumUang').textContent = rupiah(g.uangLembur);
+  el('sumPokok').textContent = rupiah(g.gajiPokok);
+  el('sumBruto').textContent = rupiah(g.bruto);
+  el('sumBpjsTk').textContent = '-' + rupiah(g.bpjsTk);
+  el('sumBpjsKes').textContent = '-' + rupiah(g.bpjsKes);
+  el('sumPph').textContent = '-' + rupiah(g.pph);
+  el('sumBersih').textContent = rupiah(g.bersih);
+  el('sumHari').textContent = g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur';
   el('btnNext').disabled = viewMonth >= todayKey().slice(0, 7);
 }
 
@@ -244,6 +270,7 @@ function exportData() {
     version: 1,
     exported: new Date().toISOString(),
     gaji_pokok: gajiPokok || null,
+    ptkp,
     data,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -356,6 +383,12 @@ el('btnUbahGaji').onclick = () => {
   el('gajiInput').focus();
 };
 
+el('selPtkp').onchange = () => {
+  ptkp = el('selPtkp').value;
+  localStorage.setItem(KEY_PTKP, ptkp);
+  renderMonth();
+};
+
 el('btnExport').onclick = exportData;
 
 el('btnImport').onclick = () => el('importFile').click();
@@ -370,6 +403,11 @@ el('importFile').onchange = async () => {
       gajiPokok = Number(parsed.gaji_pokok) || 0;
       localStorage.setItem(KEY_GAJI, String(gajiPokok));
       el('gajiCard').hidden = gajiPokok > 0;
+    }
+    if (parsed && parsed.ptkp && PTKP[parsed.ptkp]) {
+      ptkp = parsed.ptkp;
+      localStorage.setItem(KEY_PTKP, ptkp);
+      el('selPtkp').value = ptkp;
     }
     render();
     el('backupMsg').textContent = n + ' tanggal berhasil diimport.';
@@ -387,6 +425,9 @@ setInterval(() => {
 }, 20000);
 
 gajiPokok = Number(localStorage.getItem(KEY_GAJI)) || 0;
+ptkp = localStorage.getItem(KEY_PTKP) || 'TK/0';
+if (!PTKP[ptkp]) ptkp = 'TK/0';
+el('selPtkp').value = ptkp;
 el('gajiCard').hidden = gajiPokok > 0;
 render();
 </script>
