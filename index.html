@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Absensi Harian</title>
+<style>
+:root{
+  --bg:#eef1f6; --card:#fff; --text:#18212f; --muted:#68748a;
+  --line:#e6eaf1; --green:#16a34a; --blue:#2f6fed; --amber:#b45309;
+  --amber-bg:#fef3c7; --slate-bg:#e2e8f0; --red:#dc2626;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:560px;margin:0 auto;padding:20px 14px 48px}
+h1{font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 14px;text-align:center;font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.date{text-align:center;font-size:1.05rem;font-weight:700;margin-bottom:16px}
+.times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.time{background:var(--bg);border-radius:12px;padding:10px 6px;text-align:center}
+.time span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+.time strong{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.btn{border:0;border-radius:12px;padding:16px;font-size:1rem;font-weight:700;color:#fff;cursor:pointer;transition:filter .15s}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:not(:disabled):active{filter:brightness(.9)}
+.btn.masuk{background:var(--green)}
+.btn.keluar{background:var(--blue)}
+.btn.gray{background:var(--muted)}
+.btn.red{background:var(--red)}
+.actions .btn{margin:0}
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toggle{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px;font-size:.9rem;font-weight:700;color:var(--muted);cursor:pointer}
+.toggle.active.lembur{background:var(--amber-bg);border-color:#f59e0b;color:var(--amber)}
+.toggle.active.libur{background:var(--slate-bg);border-color:#94a3b8;color:#475569}
+.hint{font-size:.75rem;color:var(--muted);margin:10px 2px 0;line-height:1.45}
+.mini{background:none;border:0;color:var(--blue);font-size:.72rem;cursor:pointer;text-decoration:underline;padding:0 0 0 2px}
+.reset{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);font-size:.8rem;text-decoration:underline;cursor:pointer}
+input{width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-size:1rem;margin-bottom:10px;font-family:inherit;background:#fff;color:var(--text)}
+input:focus{outline:2px solid var(--blue);outline-offset:-1px}
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.month-nav strong{font-size:1rem}
+.month-nav button{border:1px solid var(--line);background:#fff;width:36px;height:36px;border-radius:10px;font-size:1.1rem;cursor:pointer;color:var(--text)}
+.month-nav button:disabled{opacity:.3;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;color:var(--muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;padding:0 4px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:#f6f8fb}
+.outline{width:100%;margin-top:12px;background:#fff;border:1.5px dashed #cfd8e6;border-radius:12px;padding:12px;color:var(--muted);font-size:.85rem;font-weight:600;cursor:pointer}
+#manualForm{border-top:1px dashed var(--line);margin-top:12px;padding-top:14px}
+.manual-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.manual-grid label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.manual-grid label.full{grid-column:1/-1}
+.manual-grid input{margin:4px 0 0}
+td.num,th.num{text-align:right}
+.empty{text-align:center;color:var(--muted);padding:18px 0}
+.badge{font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.badge.lembur{background:var(--amber-bg);color:var(--amber)}
+.badge.libur{background:var(--slate-bg);color:#475569}
+.summary{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.summary .row{display:flex;justify-content:space-between;padding:5px 0;font-size:.9rem}
+.summary .row span{color:var(--muted)}
+.summary .row.total{font-size:1.05rem;font-weight:800;border-top:1px dashed var(--line);margin-top:8px;padding-top:10px}
+.summary .row.total span{color:var(--text)}
+.days{font-size:.78rem;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Absensi Harian</h1>
+
+  <section class="card" id="gajiCard" hidden>
+    <div class="date">Gaji Pokok</div>
+    <input type="text" id="gajiInput" inputmode="numeric" placeholder="Contoh: 4.245.927">
+    <button class="btn masuk" id="btnGaji" style="width:100%">Simpan</button>
+    <p class="hint">Diisi sekali saja, dipakai untuk menghitung estimasi gaji tiap bulan.</p>
+    <p class="hint" id="gajiMsg"></p>
+  </section>
+
+  <section class="card">
+    <div class="date" id="todayDate"></div>
+    <div class="times">
+      <div class="time"><span>Masuk</span><strong id="masukTime">--:--</strong></div>
+      <div class="time"><span>Keluar</span><strong id="keluarTime">--:--</strong></div>
+      <div class="time"><span>Jam Lembur</span><strong id="todayOt">0</strong></div>
+    </div>
+    <div class="actions">
+      <button class="btn masuk" id="btnMasuk">Masuk</button>
+      <button class="btn keluar" id="btnKeluar">Keluar</button>
+    </div>
+    <div class="toggles">
+      <button class="toggle lembur" id="btnLembur">Lembur</button>
+      <button class="toggle libur" id="btnLibur">Libur</button>
+    </div>
+    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung.</p>
+    <button class="reset" id="btnReset">Reset hari ini</button>
+  </section>
+
+  <section class="card">
+    <div class="month-nav">
+      <button id="btnPrev" aria-label="Bulan sebelumnya">&#8249;</button>
+      <strong id="monthLabel"></strong>
+      <button id="btnNext" aria-label="Bulan berikutnya">&#8250;</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Tanggal</th><th>Masuk</th><th>Keluar</th><th class="num">Lembur</th><th>Status</th></tr>
+      </thead>
+      <tbody id="monthRows"></tbody>
+    </table>
+    <button class="outline" id="btnManual">+ Isi / Edit Tanggal Manual</button>
+    <div id="manualForm" hidden>
+      <div class="manual-grid">
+        <label class="full">Tanggal<input type="date" id="manDate"></label>
+        <label>Masuk<input type="time" id="manMasuk"></label>
+        <label>Keluar<input type="time" id="manKeluar"></label>
+      </div>
+      <div class="toggles">
+        <button class="toggle lembur" id="manLembur">Lembur</button>
+        <button class="toggle libur" id="manLibur">Libur</button>
+      </div>
+      <div class="actions" style="margin:12px 0 0">
+        <button class="btn masuk" id="manSave">Simpan</button>
+        <button class="btn gray" id="manCancel">Tutup</button>
+      </div>
+      <button class="btn red" id="manHapus" style="width:100%;margin-top:10px" hidden>Hapus tanggal ini</button>
+      <p class="hint" id="manMsg"></p>
+    </div>
+    <div class="summary">
+      <div class="row"><span>Total jam lembur</span><strong id="sumJam">0 jam</strong></div>
+      <div class="row"><span>Uang lembur</span><strong id="sumUang">Rp0</strong></div>
+      <div class="row"><span>Gaji pokok<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
+      <div class="row total"><span>Estimasi gaji</span><strong id="sumTotal">Rp0</strong></div>
+      <div class="days" id="sumHari"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="date">Backup Data</div>
+    <div class="actions">
+      <button class="btn masuk" id="btnExport">Download JSON</button>
+      <button class="btn gray" id="btnImport">Import JSON</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <p class="hint">Data tersimpan di browser ini. Unduh file JSON untuk backup / pindah perangkat. Import akan menggabungkan data &mdash; tanggal yang sama ditimpa isi file.</p>
+    <p class="hint" id="backupMsg"></p>
+  </section>
+</main>
+
+<script src="calc.js"></script>
+<script>
+const KEY = 'absensi-harian-v1';
+const KEY_GAJI = 'absensi-harian-gaji';
+
+const el = id => document.getElementById(id);
+const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
+const angka = n => n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+
+let data = {};
+try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { data = {}; }
+const save = () => localStorage.setItem(KEY, JSON.stringify(data));
+
+let gajiPokok = 0;
+let manLembur = false;
+let manLibur = false;
+let viewMonth = todayKey().slice(0, 7);
+let lastDay = todayKey();
+
+function todayKey() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function nowTime() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function rec() { return data[todayKey()] || {}; }
+function saveRec(k, patch) {
+  data[k] = Object.assign({}, data[k], patch);
+  save();
+  render();
+}
+function setRec(patch) { saveRec(todayKey(), patch); }
+function deleteRec(k) {
+  delete data[k];
+  save();
+  render();
+}
+function shiftMonth(ym, delta) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function render() { renderToday(); renderMonth(); }
+
+function renderToday() {
+  const r = rec();
+  el('todayDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  el('masukTime').textContent = r.masuk || '--:--';
+  el('keluarTime').textContent = r.keluar || '--:--';
+  el('todayOt').textContent = angka(jamLemburHari(r));
+  el('btnMasuk').disabled = !!r.masuk || !!r.libur;
+  el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
+  el('btnLembur').classList.toggle('active', !!r.lembur);
+  el('btnLibur').classList.toggle('active', !!r.libur);
+}
+
+function renderMonth() {
+  const [y, m] = viewMonth.split('-').map(Number);
+  el('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+  const rows = Object.keys(data).filter(k => k.startsWith(viewMonth)).sort().reverse();
+  const tbody = el('monthRows');
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Belum ada data</td></tr>';
+  }
+  for (const k of rows) {
+    const r = data[k];
+    const badge = r.libur ? '<span class="badge libur">Libur</span>' : (r.lembur ? '<span class="badge lembur">Lembur</span>' : '');
+    const label = new Date(k + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    const tr = document.createElement('tr');
+    tr.className = 'clickable';
+    tr.onclick = () => openManual(k);
+    tr.innerHTML = '<td>' + label + '</td><td>' + (r.masuk || '--:--') + '</td><td>' + (r.keluar || '--:--') + '</td><td class="num">' + angka(jamLemburHari(r)) + '</td><td>' + badge + '</td>';
+    tbody.appendChild(tr);
+  }
+
+  const s = ringkasanBulan(data, viewMonth, gajiPokok);
+  el('sumJam').textContent = angka(s.jam) + ' jam';
+  el('sumUang').textContent = rupiah(s.uangLembur);
+  el('sumPokok').textContent = rupiah(s.gajiPokok);
+  el('sumTotal').textContent = rupiah(s.total);
+  el('sumHari').textContent = s.hariKerja + ' hari kerja · ' + s.hariLembur + ' lembur · ' + s.hariLibur + ' libur';
+  el('btnNext').disabled = viewMonth >= todayKey().slice(0, 7);
+}
+
+function exportData() {
+  const payload = {
+    app: 'absensi-harian',
+    version: 1,
+    exported: new Date().toISOString(),
+    gaji_pokok: gajiPokok || null,
+    data,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'absensi-' + todayKey() + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  el('backupMsg').textContent = 'File backup diunduh.';
+}
+
+function importData(parsed) {
+  const src = parsed && typeof parsed === 'object' && parsed.data && typeof parsed.data === 'object'
+    ? parsed.data : parsed;
+  if (!src || typeof src !== 'object' || Array.isArray(src)) throw new Error('struktur file tidak dikenal');
+  let n = 0;
+  for (const [k, r] of Object.entries(src)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+    const item = bersihkanRekaman(r);
+    if (!item) continue;
+    data[k] = item;
+    n++;
+  }
+  if (!n) throw new Error('tidak ada tanggal valid di file');
+  save();
+  return n;
+}
+
+el('btnMasuk').onclick = () => setRec({ masuk: nowTime() });
+el('btnKeluar').onclick = () => setRec({ keluar: nowTime() });
+el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false });
+el('btnLibur').onclick = () => setRec({ libur: !rec().libur, lembur: false });
+el('btnReset').onclick = () => {
+  if (!confirm('Hapus data absensi hari ini?')) return;
+  deleteRec(todayKey());
+};
+el('btnPrev').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); renderMonth(); };
+el('btnNext').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); renderMonth(); };
+
+function syncManToggles() {
+  el('manLembur').classList.toggle('active', manLembur);
+  el('manLibur').classList.toggle('active', manLibur);
+}
+
+function loadManual(k) {
+  const r = data[k] || {};
+  el('manMasuk').value = r.masuk || '';
+  el('manKeluar').value = r.keluar || '';
+  manLembur = !!r.lembur;
+  manLibur = !!r.libur;
+  el('manHapus').hidden = !data[k];
+  el('manMsg').textContent = '';
+  syncManToggles();
+}
+
+function openManual(k) {
+  el('manDate').max = todayKey();
+  el('manDate').value = k || '';
+  loadManual(k || '');
+  el('manualForm').hidden = false;
+  el('btnManual').hidden = true;
+  el('manMsg').textContent = '';
+}
+
+el('btnManual').onclick = () => openManual('');
+el('manCancel').onclick = () => { el('manualForm').hidden = true; el('btnManual').hidden = false; };
+el('manDate').onchange = () => loadManual(el('manDate').value);
+el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) manLibur = false; syncManToggles(); };
+el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) manLembur = false; syncManToggles(); };
+
+el('manSave').onclick = () => {
+  const k = el('manDate').value;
+  if (!k) { el('manMsg').textContent = 'Pilih tanggal dulu.'; return; }
+  const masuk = el('manMasuk').value;
+  const keluar = el('manKeluar').value;
+  if (keluar && !masuk) { el('manMsg').textContent = 'Jam keluar tidak bisa diisi tanpa jam masuk.'; return; }
+  if (!masuk && !manLembur && !manLibur) { el('manMsg').textContent = 'Isi jam masuk, atau tandai Lembur/Libur.'; return; }
+  viewMonth = k.slice(0, 7);
+  saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: manLibur });
+  loadManual(k);
+  el('manMsg').textContent = 'Tersimpan.';
+};
+
+el('manHapus').onclick = () => {
+  const k = el('manDate').value;
+  if (!k || !data[k]) return;
+  if (!confirm('Hapus data tanggal ' + k + '?')) return;
+  deleteRec(k);
+  loadManual(k);
+  el('manMsg').textContent = 'Data tanggal ' + k + ' dihapus.';
+};
+
+el('btnGaji').onclick = () => {
+  const val = Number(el('gajiInput').value.replace(/\D/g, ''));
+  if (!val) { el('gajiMsg').textContent = 'Isi gaji pokok yang valid.'; return; }
+  gajiPokok = val;
+  localStorage.setItem(KEY_GAJI, String(val));
+  el('gajiCard').hidden = true;
+  el('gajiMsg').textContent = '';
+  render();
+};
+
+el('btnUbahGaji').onclick = () => {
+  el('gajiInput').value = gajiPokok || '';
+  el('gajiMsg').textContent = '';
+  el('gajiCard').hidden = false;
+  el('gajiInput').focus();
+};
+
+el('btnExport').onclick = exportData;
+
+el('btnImport').onclick = () => el('importFile').click();
+el('importFile').onchange = async () => {
+  const file = el('importFile').files[0];
+  el('importFile').value = '';
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const n = importData(parsed);
+    if (parsed && parsed.gaji_pokok && !gajiPokok) {
+      gajiPokok = Number(parsed.gaji_pokok) || 0;
+      localStorage.setItem(KEY_GAJI, String(gajiPokok));
+      el('gajiCard').hidden = gajiPokok > 0;
+    }
+    render();
+    el('backupMsg').textContent = n + ' tanggal berhasil diimport.';
+  } catch (e) {
+    el('backupMsg').textContent = 'Gagal import: ' + (e.message || e);
+  }
+};
+
+setInterval(() => {
+  if (todayKey() !== lastDay) {
+    lastDay = todayKey();
+    viewMonth = lastDay.slice(0, 7);
+    render();
+  }
+}, 20000);
+
+gajiPokok = Number(localStorage.getItem(KEY_GAJI)) || 0;
+el('gajiCard').hidden = gajiPokok > 0;
+render();
+</script>
+</body>
+</html>
