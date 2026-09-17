@@ -13,7 +13,11 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:560px;margin:0 auto;padding:20px 14px 48px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.head h1{margin:0}
 h1{font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 14px;text-align:center;font-weight:700}
+.ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:.75rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+.ghost[aria-pressed="true"]{background:var(--slate-bg);color:#475569}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
 .date{text-align:center;font-size:1.05rem;font-weight:700;margin-bottom:16px}
 .times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
@@ -72,7 +76,10 @@ td.num,th.num{text-align:right}
 </head>
 <body>
 <main>
-  <h1>Absensi Harian</h1>
+  <div class="head">
+    <h1>Absensi Harian</h1>
+    <button class="ghost" id="btnHide" aria-pressed="false">Sembunyikan</button>
+  </div>
 
   <section class="card" id="gajiCard" hidden>
     <div class="date">Gaji Pokok</div>
@@ -174,6 +181,7 @@ td.num,th.num{text-align:right}
 const KEY = 'absensi-harian-v1';
 const KEY_GAJI = 'absensi-harian-gaji';
 const KEY_PTKP = 'absensi-harian-ptkp';
+const KEY_HIDE = 'absensi-harian-hide';
 
 const el = id => document.getElementById(id);
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -185,6 +193,7 @@ const save = () => localStorage.setItem(KEY, JSON.stringify(data));
 
 let gajiPokok = 0;
 let ptkp = 'TK/0';
+let tersembunyi = localStorage.getItem(KEY_HIDE) === '1';
 let manLembur = false;
 let manLibur = false;
 let viewMonth = todayKey().slice(0, 7);
@@ -218,12 +227,14 @@ function shiftMonth(ym, delta) {
 
 function render() { renderToday(); renderMonth(); }
 
+const rahasia = v => tersembunyi ? '***' : v;
+
 function renderToday() {
   const r = rec();
   el('todayDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  el('masukTime').textContent = r.masuk || '--:--';
-  el('keluarTime').textContent = r.keluar || '--:--';
-  el('todayOt').textContent = angka(jamLemburHari(r));
+  el('masukTime').textContent = r.masuk ? rahasia(r.masuk) : '--:--';
+  el('keluarTime').textContent = r.keluar ? rahasia(r.keluar) : '--:--';
+  el('todayOt').textContent = rahasia(angka(jamLemburHari(r)));
   el('btnMasuk').disabled = !!r.masuk || !!r.libur;
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
   el('btnLembur').classList.toggle('active', !!r.lembur);
@@ -247,19 +258,19 @@ function renderMonth() {
     const tr = document.createElement('tr');
     tr.className = 'clickable';
     tr.onclick = () => openManual(k);
-    tr.innerHTML = '<td>' + label + '</td><td>' + (r.masuk || '--:--') + '</td><td>' + (r.keluar || '--:--') + '</td><td class="num">' + angka(jamLemburHari(r)) + '</td><td>' + badge + '</td>';
+    tr.innerHTML = '<td>' + label + '</td><td>' + (r.masuk ? rahasia(r.masuk) : '--:--') + '</td><td>' + (r.keluar ? rahasia(r.keluar) : '--:--') + '</td><td class="num">' + rahasia(angka(jamLemburHari(r))) + '</td><td>' + badge + '</td>';
     tbody.appendChild(tr);
   }
 
   const g = hitungGaji(data, viewMonth, gajiPokok, ptkp);
-  el('sumJam').textContent = angka(g.jam) + ' jam';
-  el('sumUang').textContent = rupiah(g.uangLembur);
-  el('sumPokok').textContent = rupiah(g.gajiPokok);
-  el('sumBruto').textContent = rupiah(g.bruto);
-  el('sumBpjsTk').textContent = '-' + rupiah(g.bpjsTk);
-  el('sumBpjsKes').textContent = '-' + rupiah(g.bpjsKes);
-  el('sumPph').textContent = '-' + rupiah(g.pph);
-  el('sumBersih').textContent = rupiah(g.bersih);
+  el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
+  el('sumUang').textContent = rahasia(rupiah(g.uangLembur));
+  el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
+  el('sumBruto').textContent = rahasia(rupiah(g.bruto));
+  el('sumBpjsTk').textContent = rahasia('-' + rupiah(g.bpjsTk));
+  el('sumBpjsKes').textContent = rahasia('-' + rupiah(g.bpjsKes));
+  el('sumPph').textContent = rahasia('-' + rupiah(g.pph));
+  el('sumBersih').textContent = rahasia(rupiah(g.bersih));
   el('sumHari').textContent = g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur';
   el('btnNext').disabled = viewMonth >= todayKey().slice(0, 7);
 }
@@ -312,6 +323,18 @@ el('btnReset').onclick = () => {
 };
 el('btnPrev').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); renderMonth(); };
 el('btnNext').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); renderMonth(); };
+
+function syncHideButton() {
+  el('btnHide').textContent = tersembunyi ? 'Tampilkan' : 'Sembunyikan';
+  el('btnHide').setAttribute('aria-pressed', tersembunyi ? 'true' : 'false');
+}
+
+el('btnHide').onclick = () => {
+  tersembunyi = !tersembunyi;
+  localStorage.setItem(KEY_HIDE, tersembunyi ? '1' : '0');
+  syncHideButton();
+  render();
+};
 
 function syncManToggles() {
   el('manLembur').classList.toggle('active', manLembur);
@@ -429,6 +452,7 @@ ptkp = localStorage.getItem(KEY_PTKP) || 'TK/0';
 if (!PTKP[ptkp]) ptkp = 'TK/0';
 el('selPtkp').value = ptkp;
 el('gajiCard').hidden = gajiPokok > 0;
+syncHideButton();
 render();
 </script>
 </body>
