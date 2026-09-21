@@ -1,4 +1,5 @@
 const PEMBAGI_JAM = 173;
+const JAM_KERJA_SEHARI = 8;
 const AKHIR_KERJA_NORMAL = '14:00';
 
 function toMinutes(t) {
@@ -44,21 +45,48 @@ function bersihkanRekaman(r) {
   return out;
 }
 
+function upahPerJam(gajiPokok) {
+  return gajiPokok / PEMBAGI_JAM;
+}
+
+// Upah satu hari: hari kerja normal = 8 jam + lembur hari itu; hari Lembur = hitungan lemburnya saja
+function pendapatanHari(rec, gajiPokok) {
+  if (!rec || rec.libur) return 0;
+  const rate = upahPerJam(gajiPokok);
+  if (rec.lembur) return jamLemburHari(rec) * rate;
+  if (!rec.masuk || !rec.keluar) return 0;
+  return (JAM_KERJA_SEHARI + jamLemburHari(rec)) * rate;
+}
+
 function ringkasanBulan(data, bulan, gajiPokok) {
   let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0;
   for (const [tgl, rec] of Object.entries(data)) {
     if (!tgl.startsWith(bulan)) continue;
     if (rec.libur) { hariLibur++; continue; }
+    if (rec.lembur) { hariLembur++; jam += jamLemburHari(rec); continue; }
     if (rec.masuk && rec.keluar) hariKerja++;
-    if (rec.lembur) hariLembur++;
     jam += jamLemburHari(rec);
   }
-  const uangLembur = (gajiPokok / PEMBAGI_JAM) * jam;
+  const rate = upahPerJam(gajiPokok);
+  const gajiHarian = JAM_KERJA_SEHARI * rate * hariKerja;
+  const uangLembur = jam * rate;
   return {
-    jam, hariKerja, hariLembur, hariLibur, uangLembur,
+    jam, hariKerja, hariLembur, hariLibur, upahPerJam: rate,
+    gajiHarian,
+    uangLembur,
     gajiPokok,
-    total: gajiPokok + uangLembur,
+    total: gajiHarian + uangLembur,
   };
+}
+
+// Akumulasi berurutan: upah hari itu + total berjalan sampai akhir bulan
+function akumulasiHarian(data, bulan, gajiPokok) {
+  let total = 0;
+  return Object.keys(data).filter(k => k.startsWith(bulan)).sort().map(k => {
+    const upah = pendapatanHari(data[k], gajiPokok);
+    total += upah;
+    return { tanggal: k, rec: data[k], upah, akumulasi: total };
+  });
 }
 
 const PTKP = {
@@ -109,5 +137,5 @@ function hitungGaji(data, bulan, gajiPokok, ptkp) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, ringkasanBulan, pph21Setahun, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji };
 }

@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, ringkasanBulan, pph21Setahun, hitungGaji } = require('./calc.js');
+const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji } = require('./calc.js');
 
 const GAJI_POKOK = 4245927;
 
@@ -29,7 +29,17 @@ assert.deepStrictEqual(bersihkanRekaman({ masuk: 'abc', keluar: null, libur: tru
 assert.strictEqual(bersihkanRekaman(null), null);
 assert.strictEqual(bersihkanRekaman('2026-09-01'), null);
 
-// Ringkasan bulan + rumus gaji
+// Upah per hari: 8 jam x upah/jam + lembur hari itu
+const rate = GAJI_POKOK / 173;
+assert.strictEqual(upahPerJam(GAJI_POKOK), rate);
+assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00' }, GAJI_POKOK) - 13.5 * rate) < 1e-9);
+assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '14:00' }, GAJI_POKOK) - 8 * rate) < 1e-9);
+assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00', lembur: true }, GAJI_POKOK) - 27 * rate) < 1e-9);
+assert.strictEqual(pendapatanHari({ libur: true }, GAJI_POKOK), 0);
+assert.strictEqual(pendapatanHari({ masuk: '06:00' }, GAJI_POKOK), 0);
+assert.strictEqual(pendapatanHari({}, GAJI_POKOK), 0);
+
+// Ringkasan bulan: pokok ikut hari yang tercatat, bukan dibayar penuh
 const data = {
   '2026-09-01': { masuk: '06:00', keluar: '17:00' },
   '2026-09-02': { masuk: '06:00', keluar: '17:00', lembur: true },
@@ -38,11 +48,24 @@ const data = {
 };
 const s = ringkasanBulan(data, '2026-09', GAJI_POKOK);
 assert.strictEqual(s.jam, 32.5);
-assert.strictEqual(s.hariKerja, 2);
+assert.strictEqual(s.hariKerja, 1);
 assert.strictEqual(s.hariLembur, 1);
 assert.strictEqual(s.hariLibur, 1);
-assert.ok(Math.abs(s.uangLembur - (GAJI_POKOK / 173) * 32.5) < 1e-9);
-assert.ok(Math.abs(s.total - (GAJI_POKOK + s.uangLembur)) < 1e-9);
+assert.ok(Math.abs(s.gajiHarian - 8 * rate) < 1e-9);
+assert.ok(Math.abs(s.uangLembur - rate * 32.5) < 1e-9);
+assert.ok(Math.abs(s.total - (s.gajiHarian + s.uangLembur)) < 1e-9);
+// Sebulan kerja penuh (21,625 hari) = gaji pokok
+assert.ok(Math.abs(8 * rate * (173 / 8) - GAJI_POKOK) < 1e-9);
+
+// Akumulasi harian: urut tanggal, total berjalan
+const ak = akumulasiHarian(data, '2026-09', GAJI_POKOK);
+assert.deepStrictEqual(ak.map(r => r.tanggal), ['2026-09-01', '2026-09-02', '2026-09-03']);
+assert.ok(Math.abs(ak[0].upah - 13.5 * rate) < 1e-9);
+assert.ok(Math.abs(ak[0].akumulasi - ak[0].upah) < 1e-9);
+assert.ok(Math.abs(ak[1].upah - 27 * rate) < 1e-9);
+assert.ok(Math.abs(ak[1].akumulasi - (ak[0].upah + ak[1].upah)) < 1e-9);
+assert.strictEqual(ak[2].upah, 0);
+assert.ok(Math.abs(ak[2].akumulasi - s.total) < 1e-9);
 
 // PPh 21: bruto 100jt setahun, JHT/JP 1,5jt, TK/0 -> pkp 39,5jt -> 5%
 assert.strictEqual(pph21Setahun(0, 0, 54000000), 0);

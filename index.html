@@ -20,10 +20,10 @@ h1{font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--m
 .ghost[aria-pressed="true"]{background:var(--slate-bg);color:#475569}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
 .date{text-align:center;font-size:1.05rem;font-weight:700;margin-bottom:16px}
-.times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
-.time{background:var(--bg);border-radius:12px;padding:10px 6px;text-align:center}
-.time span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
-.time strong{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.times{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.time{background:var(--bg);border-radius:12px;padding:10px 4px;text-align:center}
+.time span{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:4px}
+.time strong{font-size:.98rem;font-variant-numeric:tabular-nums}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .btn{border:0;border-radius:12px;padding:16px;font-size:1rem;font-weight:700;color:#fff;cursor:pointer;transition:filter .15s}
 .btn:disabled{opacity:.35;cursor:not-allowed}
@@ -46,9 +46,10 @@ input:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .month-nav strong{font-size:1rem}
 .month-nav button{border:1px solid var(--line);background:#fff;width:36px;height:36px;border-radius:10px;font-size:1.1rem;cursor:pointer;color:var(--text)}
 .month-nav button:disabled{opacity:.3;cursor:not-allowed}
-table{width:100%;border-collapse:collapse;font-size:.82rem}
-th{text-align:left;color:var(--muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;padding:0 4px 8px;border-bottom:1px solid var(--line)}
-td{padding:8px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+.table-wrap{overflow-x:auto;margin:0 -2px}
+th{text-align:left;color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;padding:0 4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
 tr:last-child td{border-bottom:0}
 tr.clickable{cursor:pointer}
 tr.clickable:hover td{background:#f6f8fb}
@@ -94,7 +95,8 @@ td.num,th.num{text-align:right}
     <div class="times">
       <div class="time"><span>Masuk</span><strong id="masukTime">--:--</strong></div>
       <div class="time"><span>Keluar</span><strong id="keluarTime">--:--</strong></div>
-      <div class="time"><span>Jam Lembur</span><strong id="todayOt">0</strong></div>
+      <div class="time"><span>Lembur</span><strong id="todayOt">0</strong></div>
+      <div class="time"><span>Upah</span><strong id="todayPay">0</strong></div>
     </div>
     <div class="actions">
       <button class="btn masuk" id="btnMasuk">Masuk</button>
@@ -114,12 +116,14 @@ td.num,th.num{text-align:right}
       <strong id="monthLabel"></strong>
       <button id="btnNext" aria-label="Bulan berikutnya">&#8250;</button>
     </div>
-    <table>
-      <thead>
-        <tr><th>Tanggal</th><th>Masuk</th><th>Keluar</th><th class="num">Lembur</th><th>Status</th></tr>
-      </thead>
-      <tbody id="monthRows"></tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Tanggal</th><th>Jam</th><th class="num">Lembur</th><th class="num">Dapat</th><th class="num">Akumulasi</th><th>Status</th></tr>
+        </thead>
+        <tbody id="monthRows"></tbody>
+      </table>
+    </div>
     <button class="outline" id="btnManual">+ Isi / Edit Tanggal Manual</button>
     <div id="manualForm" hidden>
       <div class="manual-grid">
@@ -139,9 +143,10 @@ td.num,th.num{text-align:right}
       <p class="hint" id="manMsg"></p>
     </div>
     <div class="summary">
-      <div class="row"><span>Total jam lembur</span><strong id="sumJam">0 jam</strong></div>
-      <div class="row"><span>Uang lembur</span><strong id="sumUang">Rp0</strong></div>
-      <div class="row"><span>Gaji pokok<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
+      <div class="row"><span>Gaji pokok (acuan)<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
+      <div class="row"><span>Upah per jam</span><strong id="sumRate">Rp0</strong></div>
+      <div class="row"><span>Gaji harian</span><strong id="sumGajiHarian">Rp0</strong></div>
+      <div class="row"><span>Uang lembur (<span id="sumJam">0 jam</span>)</span><strong id="sumUang">Rp0</strong></div>
       <div class="row"><span>Bruto</span><strong id="sumBruto">Rp0</strong></div>
       <div class="row"><span>Status PTKP</span>
         <select id="selPtkp">
@@ -160,7 +165,7 @@ td.num,th.num{text-align:right}
       <div class="row pot"><span>PPh 21</span><strong id="sumPph">-Rp0</strong></div>
       <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
       <div class="days" id="sumHari"></div>
-      <p class="hint">Potongan BPJS dihitung dari gaji pokok. PPh 21 estimasi: bruto setahun &divide; 12, dikurangi biaya jabatan 5% (maks Rp6.000.000/tahun), JHT+JP 3%, dan PTKP, lalu tarif progresif.</p>
+      <p class="hint">Gaji harian = 8 jam &times; upah per jam, hanya untuk hari kerja yang tercatat (hari tanpa catatan tidak dapat pokok). Hari Lembur dibayar dari hitungan jam lemburnya. Potongan BPJS dari gaji pokok acuan; PPh 21 estimasi bruto setahun &divide; 12.</p>
     </div>
   </section>
 
@@ -185,6 +190,7 @@ const KEY_HIDE = 'absensi-harian-hide';
 
 const el = id => document.getElementById(id);
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
+const rupiahRingkas = n => new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const angka = n => n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
 
 let data = {};
@@ -235,6 +241,7 @@ function renderToday() {
   el('masukTime').textContent = r.masuk ? rahasia(r.masuk) : '--:--';
   el('keluarTime').textContent = r.keluar ? rahasia(r.keluar) : '--:--';
   el('todayOt').textContent = rahasia(angka(jamLemburHari(r)));
+  el('todayPay').textContent = rahasia(rupiahRingkas(pendapatanHari(r, gajiPokok)));
   el('btnMasuk').disabled = !!r.masuk || !!r.libur;
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
   el('btnLembur').classList.toggle('active', !!r.lembur);
@@ -245,27 +252,32 @@ function renderMonth() {
   const [y, m] = viewMonth.split('-').map(Number);
   el('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
-  const rows = Object.keys(data).filter(k => k.startsWith(viewMonth)).sort().reverse();
+  const rows = akumulasiHarian(data, viewMonth, gajiPokok);
   const tbody = el('monthRows');
   tbody.innerHTML = '';
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">Belum ada data</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Belum ada data</td></tr>';
   }
-  for (const k of rows) {
-    const r = data[k];
+  for (const row of rows) {
+    const r = row.rec;
     const badge = r.libur ? '<span class="badge libur">Libur</span>' : (r.lembur ? '<span class="badge lembur">Lembur</span>' : '');
-    const label = new Date(k + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    const label = new Date(row.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    const jam = tersembunyi && (r.masuk || r.keluar)
+      ? '***'
+      : (r.masuk || '--:--') + ' – ' + (r.keluar || '--:--');
     const tr = document.createElement('tr');
     tr.className = 'clickable';
-    tr.onclick = () => openManual(k);
-    tr.innerHTML = '<td>' + label + '</td><td>' + (r.masuk ? rahasia(r.masuk) : '--:--') + '</td><td>' + (r.keluar ? rahasia(r.keluar) : '--:--') + '</td><td class="num">' + rahasia(angka(jamLemburHari(r))) + '</td><td>' + badge + '</td>';
+    tr.onclick = () => openManual(row.tanggal);
+    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td><td>' + badge + '</td>';
     tbody.appendChild(tr);
   }
 
   const g = hitungGaji(data, viewMonth, gajiPokok, ptkp);
+  el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
+  el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
+  el('sumGajiHarian').textContent = rahasia(rupiah(g.gajiHarian));
   el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
   el('sumUang').textContent = rahasia(rupiah(g.uangLembur));
-  el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
   el('sumBruto').textContent = rahasia(rupiah(g.bruto));
   el('sumBpjsTk').textContent = rahasia('-' + rupiah(g.bpjsTk));
   el('sumBpjsKes').textContent = rahasia('-' + rupiah(g.bpjsKes));
