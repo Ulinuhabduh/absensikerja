@@ -138,16 +138,27 @@ function pph21Setahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
   return pajak;
 }
 
-function hitungGaji(data, bulan, gajiPokok, ptkp, istirahat) {
+// thr = THR/bonus yang dibayarkan di bulan itu (0 bila tidak ada)
+function hitungGaji(data, bulan, gajiPokok, ptkp, istirahat, thr) {
   const s = ringkasanBulan(data, bulan, gajiPokok, istirahat);
   const bpjsTk = gajiPokok * 0.03;
   const bpjsKes = gajiPokok * 0.01;
-  const pph = pph21Setahun(s.total * 12, bpjsTk * 12, PTKP[ptkp] || 0) / 12;
+  const brutoSetahun = s.total * 12;
+  const pphTeraturSetahun = pph21Setahun(brutoSetahun, bpjsTk * 12, PTKP[ptkp] || 0);
+  const nilaiThr = thr > 0 ? thr : 0;
+  // PPh atas THR/bonus = selisih PPh setahun (teratur + THR) dengan PPh setahun teratur saja
+  const pphThr = nilaiThr > 0
+    ? pph21Setahun(brutoSetahun + nilaiThr, bpjsTk * 12, PTKP[ptkp] || 0) - pphTeraturSetahun
+    : 0;
+  const pph = pphTeraturSetahun / 12 + pphThr;
   return Object.assign({}, s, {
     bruto: s.total,
-    bpjsTk, bpjsKes, pph,
+    thr: nilaiThr,
+    bpjsTk, bpjsKes,
+    pphTeratur: pphTeraturSetahun / 12,
+    pphThr, pph,
     potongan: bpjsTk + bpjsKes + pph,
-    bersih: s.total - bpjsTk - bpjsKes - pph,
+    bersih: s.total + nilaiThr - bpjsTk - bpjsKes - pph,
   });
 }
 

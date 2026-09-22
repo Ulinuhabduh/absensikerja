@@ -78,6 +78,10 @@ td.num,th.num{text-align:right}
 .summary select{border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font-size:.82rem;font-family:inherit;background:#fff;color:var(--text)}
 .days{font-size:.78rem;color:var(--muted);margin-top:6px}
 .ket-select{margin-top:10px}
+.thr-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.thr-item:last-child{border-bottom:0}
+.thr-item span{color:var(--muted)}
+.thr-item b{font-variant-numeric:tabular-nums}
 #printArea{display:none;padding:0 8mm}
 #printArea .p-title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.08em;margin:0 0 3mm}
 #printArea .p-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 8mm;font-size:10pt;margin-bottom:3mm;padding-left:2mm}
@@ -204,6 +208,7 @@ td.num,th.num{text-align:right}
       <div class="row"><span>Gaji harian</span><strong id="sumGajiHarian">Rp0</strong></div>
       <div class="row"><span>Uang lembur (<span id="sumJam">0 jam</span>)</span><strong id="sumUang">Rp0</strong></div>
       <div class="row"><span>Bruto</span><strong id="sumBruto">Rp0</strong></div>
+      <div class="row" id="sumThrRow" hidden><span>THR / Bonus</span><strong id="sumThr">+Rp0</strong></div>
       <div class="row"><span>Status PTKP</span>
         <select id="selPtkp">
           <option value="TK/0">TK/0</option>
@@ -219,12 +224,25 @@ td.num,th.num{text-align:right}
       <div class="row pot"><span>BPJS Ketenagakerjaan 3%</span><strong id="sumBpjsTk">-Rp0</strong></div>
       <div class="row pot"><span>BPJS Kesehatan 1%</span><strong id="sumBpjsKes">-Rp0</strong></div>
       <div class="row pot"><span>PPh 21<button class="mini" id="btnPph">penjelasan</button></span><strong id="sumPph">-Rp0</strong></div>
+      <div class="row pot" id="sumPphThrRow" hidden><span>PPh 21 atas THR</span><strong id="sumPphThr">-Rp0</strong></div>
       <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
       <div class="days" id="sumHari"></div>
       <p class="hint">Gaji harian = 8 jam &times; upah per jam, hanya untuk hari kerja yang tercatat (hari tanpa catatan tidak dapat pokok). Hari Lembur dibayar dari hitungan jam lemburnya. Potongan BPJS dari gaji pokok acuan; PPh 21 estimasi bruto setahun &divide; 12.</p>
     </div>
     <button class="btn keluar" id="btnPdf" style="width:100%;margin-top:16px">Download PDF Bulan Ini</button>
     <p class="hint">Terbuka dialog print &mdash; pilih "Save as PDF". Hasilnya 1 halaman A4, 31 baris tanggal.</p>
+  </section>
+
+  <section class="card">
+    <div class="date">THR / Bonus</div>
+    <div class="manual-grid">
+      <label>Bulan<input type="month" id="thrBulan"></label>
+      <label>Nominal<input type="text" id="thrNominal" inputmode="numeric" placeholder="Contoh: 4.245.927"></label>
+    </div>
+    <button class="btn masuk" id="btnThr" style="width:100%">Simpan</button>
+    <div id="thrList"></div>
+    <p class="hint" id="thrMsg"></p>
+    <p class="hint">THR/bonus tidak ikut tarif bulanan. PPh-nya dihitung dari selisih PPh setahun (teratur + THR) dengan PPh setahun teratur saja, lalu dipotong penuh di bulan itu. Isi nominal 0 untuk menghapus.</p>
   </section>
 
   <section class="card">
@@ -259,11 +277,16 @@ const KEY_PTKP = 'absensi-harian-ptkp';
 const KEY_HIDE = 'absensi-harian-hide';
 const KEY_KARYAWAN = 'absensi-harian-karyawan';
 const KEY_MODE = 'absensi-harian-mode';
+const KEY_THR = 'absensi-harian-thr';
 
 const el = id => document.getElementById(id);
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 const rupiahRingkas = n => new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const angka = n => n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+const formatRibuan = v => {
+  const digit = String(v).replace(/\D/g, '');
+  return digit ? Number(digit).toLocaleString('id-ID') : '';
+};
 
 let data = {};
 try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { data = {}; }
@@ -275,6 +298,8 @@ let tersembunyi = localStorage.getItem(KEY_HIDE) === '1';
 let karyawan = { nama: '', noid: '', dept: '', kerja: '' };
 try { karyawan = Object.assign(karyawan, JSON.parse(localStorage.getItem(KEY_KARYAWAN)) || {}); } catch (e) { }
 let istirahat = Number(localStorage.getItem(KEY_MODE)) || 0;
+let thr = {};
+try { thr = JSON.parse(localStorage.getItem(KEY_THR)) || {}; } catch (e) { thr = {}; }
 let manLembur = false;
 let manLibur = false;
 let manKet = '';
@@ -307,7 +332,7 @@ function shiftMonth(ym, delta) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
-function render() { renderToday(); renderMonth(); renderPrint(); }
+function render() { renderToday(); renderMonth(); renderThrList(); renderPrint(); }
 
 const rahasia = v => tersembunyi ? '***' : v;
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -351,19 +376,35 @@ function renderMonth() {
     tbody.appendChild(tr);
   }
 
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat);
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat, thr[viewMonth] || 0);
   el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
   el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
   el('sumGajiHarian').textContent = rahasia(rupiah(g.gajiHarian));
   el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
   el('sumUang').textContent = rahasia(rupiah(g.uangLembur));
   el('sumBruto').textContent = rahasia(rupiah(g.bruto));
+  el('sumThrRow').hidden = !(g.thr > 0);
+  el('sumThr').textContent = rahasia('+' + rupiah(g.thr));
   el('sumBpjsTk').textContent = rahasia('-' + rupiah(g.bpjsTk));
   el('sumBpjsKes').textContent = rahasia('-' + rupiah(g.bpjsKes));
-  el('sumPph').textContent = rahasia('-' + rupiah(g.pph));
+  el('sumPph').textContent = rahasia('-' + rupiah(g.pphTeratur));
+  el('sumPphThrRow').hidden = !(g.pphThr > 0);
+  el('sumPphThr').textContent = rahasia('-' + rupiah(g.pphThr));
   el('sumBersih').textContent = rahasia(rupiah(g.bersih));
   el('sumHari').textContent = g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur';
   el('btnNext').disabled = viewMonth >= todayKey().slice(0, 7);
+}
+
+function renderThrList() {
+  const keys = Object.keys(thr).sort();
+  el('thrList').innerHTML = keys.map(k => {
+    const [y, m] = k.split('-').map(Number);
+    const label = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    return '<div class="thr-item"><span>' + label + '</span><b>' + rupiah(thr[k]) + '</b><button class="mini" data-thr="' + k + '">hapus</button></div>';
+  }).join('');
+  el('thrList').querySelectorAll('button[data-thr]').forEach(b => {
+    b.onclick = () => { delete thr[b.dataset.thr]; localStorage.setItem(KEY_THR, JSON.stringify(thr)); render(); };
+  });
 }
 
 function renderPrint() {
@@ -379,7 +420,7 @@ function renderPrint() {
       '<td class="c">' + (r && r.keluar ? esc(r.keluar) : '') + '</td>' +
       '<td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
   }
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat);
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat, thr[viewMonth] || 0);
   const mode = istirahat ? '10 jam kerja + 1 jam istirahat' : '11 jam (8 jam kerja + 3 jam lembur)';
   const baris = (label, nilai, cls) => '<div class="p-row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' + nilai + '</b></div>';
   el('printArea').innerHTML =
@@ -401,9 +442,11 @@ function renderPrint() {
       baris('Gaji harian', rupiah(g.gajiHarian)) +
       baris('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
       baris('Bruto', rupiah(g.bruto), 'sub') +
+      (g.thr > 0 ? baris('THR / Bonus', '+' + rupiah(g.thr)) : '') +
       baris('Potongan BPJS Ketenagakerjaan 3%', '-' + rupiah(g.bpjsTk)) +
       baris('Potongan BPJS Kesehatan 1%', '-' + rupiah(g.bpjsKes)) +
-      baris('PPh 21 (' + esc(ptkp) + ')', '-' + rupiah(g.pph)) +
+      baris('PPh 21 (' + esc(ptkp) + ')', '-' + rupiah(g.pphTeratur)) +
+      (g.pphThr > 0 ? baris('PPh 21 atas THR', '-' + rupiah(g.pphThr)) : '') +
       baris('Gaji bersih', rupiah(g.bersih), 'total') +
       '<div class="p-note">' + g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur · Mode: ' + mode + '</div>' +
     '</div>';
@@ -518,6 +561,7 @@ function exportData() {
     gaji_pokok: gajiPokok || null,
     ptkp,
     istirahat,
+    thr,
     karyawan,
     data,
   };
@@ -645,11 +689,15 @@ el('btnGaji').onclick = () => {
 };
 
 el('btnUbahGaji').onclick = () => {
-  el('gajiInput').value = gajiPokok || '';
+  el('gajiInput').value = gajiPokok ? gajiPokok.toLocaleString('id-ID') : '';
   el('gajiMsg').textContent = '';
   el('gajiCard').hidden = false;
   el('gajiInput').focus();
 };
+
+['gajiInput', 'thrNominal'].forEach(id => {
+  el(id).addEventListener('input', () => { el(id).value = formatRibuan(el(id).value); });
+});
 
 el('selPtkp').onchange = () => {
   ptkp = el('selPtkp').value;
@@ -686,6 +734,17 @@ function loadKaryawan() {
   };
 });
 
+el('btnThr').onclick = () => {
+  const k = el('thrBulan').value;
+  const val = Number(el('thrNominal').value.replace(/\D/g, ''));
+  if (!k) { el('thrMsg').textContent = 'Pilih bulan dulu.'; return; }
+  if (val) thr[k] = val; else delete thr[k];
+  localStorage.setItem(KEY_THR, JSON.stringify(thr));
+  el('thrNominal').value = '';
+  el('thrMsg').textContent = val ? 'Tersimpan: ' + rupiah(val) : 'Entri dihapus.';
+  render();
+};
+
 el('btnPdf').onclick = () => { renderPrint(); window.print(); renderPrint(); };
 el('btnPph').onclick = () => { renderPph(); window.print(); renderPrint(); };
 
@@ -713,6 +772,13 @@ el('importFile').onchange = async () => {
       istirahat = Number(parsed.istirahat) ? 1 : 0;
       localStorage.setItem(KEY_MODE, String(istirahat));
       document.querySelectorAll('input[name=mode]').forEach(radio => { radio.checked = Number(radio.value) === istirahat; });
+    }
+    if (parsed && parsed.thr && typeof parsed.thr === 'object') {
+      thr = {};
+      for (const [k, v] of Object.entries(parsed.thr)) {
+        if (/^\d{4}-\d{2}$/.test(k) && Number(v) > 0) thr[k] = Number(v);
+      }
+      localStorage.setItem(KEY_THR, JSON.stringify(thr));
     }
     if (parsed && parsed.karyawan && typeof parsed.karyawan === 'object') {
       karyawan = {

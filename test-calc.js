@@ -107,4 +107,16 @@ assert.ok(Math.abs(s2.total - (8 * rate + 30.5 * rate)) < 1e-9);
 const g2 = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', 1);
 assert.ok(g2.bruto < g.bruto);
 
+// THR/bonus: PPh-nya selisih metode tahunan, dipotong penuh di bulan itu
+const dataBesar = {};
+for (let i = 1; i <= 22; i++) dataBesar['2026-10-' + String(i).padStart(2, '0')] = { masuk: '06:00', keluar: '17:00' };
+const gB = hitungGaji(dataBesar, '2026-10', GAJI_POKOK, 'TK/0', 0, 0);
+const gT = hitungGaji(dataBesar, '2026-10', GAJI_POKOK, 'TK/0', 0, GAJI_POKOK);
+assert.strictEqual(gB.pphThr, 0);
+assert.ok(gT.pphThr > 0);
+assert.ok(Math.abs(gT.pph - (gB.pph + gT.pphThr)) < 1e-9);
+assert.ok(Math.abs(gT.bersih - (gT.bruto + GAJI_POKOK - gT.bpjsTk - gT.bpjsKes - gT.pph)) < 1e-9);
+assert.ok(Math.abs(gT.pphThr - (pph21Setahun(gB.bruto * 12 + GAJI_POKOK, GAJI_POKOK * 0.03 * 12, 54000000)
+  - pph21Setahun(gB.bruto * 12, GAJI_POKOK * 0.03 * 12, 54000000))) < 1e-9);
+
 console.log('OK - semua perhitungan benar');
