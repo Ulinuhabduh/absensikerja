@@ -84,9 +84,30 @@ td.num,th.num{text-align:right}
 #printArea .p-meta div{display:flex;gap:2mm}
 #printArea .p-meta span{min-width:24mm;color:#333}
 #printArea table{width:100%;border-collapse:collapse;table-layout:fixed}
-#printArea th,#printArea td{border:1px solid #000;height:7mm;padding:0 1.5mm;font-size:9pt;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+#printArea th,#printArea td{border:1px solid #000;height:5.8mm;padding:0 1.5mm;font-size:9pt;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}
 #printArea th{background:#eee;font-size:8.5pt;text-align:center;text-transform:uppercase}
 #printArea td.c{text-align:center}
+#printArea .p-sum{margin-top:4mm;border:1px solid #000;padding:2mm 3mm}
+#printArea .p-sum-title{font-size:9pt;font-weight:700;letter-spacing:.05em;margin-bottom:1.5mm}
+#printArea .p-row{display:flex;justify-content:space-between;font-size:8.5pt;line-height:3.8mm}
+#printArea .p-row.sub{border-top:.3mm solid #999;margin-top:.6mm;padding-top:.6mm;font-weight:700}
+#printArea .p-row.total{border-top:.5mm solid #000;margin-top:.8mm;padding-top:.8mm;font-size:10pt;font-weight:700}
+#printArea .p-note{font-size:7.5pt;color:#333;margin-top:1.5mm}
+#printArea .pph{font-size:9.5pt;line-height:1.45}
+#printArea .pph h1{font-size:13pt;text-align:center;letter-spacing:.06em;margin:0 0 1mm}
+#printArea .pph .sub{text-align:center;font-size:9pt;color:#333;margin-bottom:4mm}
+#printArea .pph h2{font-size:10pt;margin:3.5mm 0 1.5mm;border-bottom:.3mm solid #999;padding-bottom:.6mm}
+#printArea .pph p{margin:0 0 1.5mm}
+#printArea .pph ol{margin:0 0 1.5mm;padding-left:5mm}
+#printArea .pph li{margin-bottom:.7mm}
+#printArea .pph table{width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:2mm}
+#printArea .pph td{border:1px solid #999;padding:.7mm 1.5mm;height:auto;white-space:normal}
+#printArea .pph td.r{text-align:right;white-space:nowrap}
+#printArea .pph td.lb{font-weight:700;vertical-align:top}
+#printArea .pph tr.on td{font-weight:700;background:#eee;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+#printArea .pph tr.sub td{font-weight:700;border-top:.5mm solid #000}
+#printArea .pph tr.kepala td{font-weight:700;background:#eee;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+#printArea .pph .kecil{font-size:8pt;color:#333}
 @page{size:A4 portrait;margin:10mm 12mm}
 @media print{
   body{background:#fff}
@@ -197,7 +218,7 @@ td.num,th.num{text-align:right}
       </div>
       <div class="row pot"><span>BPJS Ketenagakerjaan 3%</span><strong id="sumBpjsTk">-Rp0</strong></div>
       <div class="row pot"><span>BPJS Kesehatan 1%</span><strong id="sumBpjsKes">-Rp0</strong></div>
-      <div class="row pot"><span>PPh 21</span><strong id="sumPph">-Rp0</strong></div>
+      <div class="row pot"><span>PPh 21<button class="mini" id="btnPph">penjelasan</button></span><strong id="sumPph">-Rp0</strong></div>
       <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
       <div class="days" id="sumHari"></div>
       <p class="hint">Gaji harian = 8 jam &times; upah per jam, hanya untuk hari kerja yang tercatat (hari tanpa catatan tidak dapat pokok). Hari Lembur dibayar dari hitungan jam lemburnya. Potongan BPJS dari gaji pokok acuan; PPh 21 estimasi bruto setahun &divide; 12.</p>
@@ -356,8 +377,11 @@ function renderPrint() {
     rows += '<tr><td class="c">' + (ada ? d : '') + '</td>' +
       '<td class="c">' + (r && r.masuk ? esc(r.masuk) : '') + '</td>' +
       '<td class="c">' + (r && r.keluar ? esc(r.keluar) : '') + '</td>' +
-      '<td></td><td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
+      '<td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
   }
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat);
+  const mode = istirahat ? '10 jam kerja + 1 jam istirahat' : '11 jam (8 jam kerja + 3 jam lembur)';
+  const baris = (label, nilai, cls) => '<div class="p-row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' + nilai + '</b></div>';
   el('printArea').innerHTML =
     '<div class="p-title">ABSENSI HARIAN</div>' +
     '<div class="p-meta">' +
@@ -367,9 +391,123 @@ function renderPrint() {
       '<div><span>Departemen</span>: <b>' + esc(karyawan.dept) + '</b></div>' +
       '<div><span>Periode</span>: <b>' + periode + '</b></div>' +
     '</div>' +
-    '<table><colgroup><col style="width:12%"><col style="width:18%"><col style="width:18%"><col style="width:27%"><col style="width:25%"></colgroup>' +
-    '<thead><tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>TTD</th><th>Keterangan</th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table>';
+    '<table><colgroup><col style="width:15%"><col style="width:25%"><col style="width:25%"><col style="width:35%"></colgroup>' +
+    '<thead><tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Keterangan</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '<div class="p-sum">' +
+      '<div class="p-sum-title">RINCIAN PERHITUNGAN GAJI</div>' +
+      baris('Gaji pokok (acuan)', rupiah(g.gajiPokok)) +
+      baris('Upah per jam', rupiah(g.upahPerJam)) +
+      baris('Gaji harian', rupiah(g.gajiHarian)) +
+      baris('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
+      baris('Bruto', rupiah(g.bruto), 'sub') +
+      baris('Potongan BPJS Ketenagakerjaan 3%', '-' + rupiah(g.bpjsTk)) +
+      baris('Potongan BPJS Kesehatan 1%', '-' + rupiah(g.bpjsKes)) +
+      baris('PPh 21 (' + esc(ptkp) + ')', '-' + rupiah(g.pph)) +
+      baris('Gaji bersih', rupiah(g.bersih), 'total') +
+      '<div class="p-note">' + g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur · Mode: ' + mode + '</div>' +
+    '</div>';
+}
+
+function renderPph() {
+  const hitung = (brutoBulan, iuranSetahun, ptkpKey) => {
+    const brutoSetahun = brutoBulan * 12;
+    const biaya = Math.min(brutoSetahun * 0.05, 6000000);
+    const ptkpNilai = PTKP[ptkpKey];
+    const pkp = Math.floor(Math.max(0, brutoSetahun - biaya - iuranSetahun - ptkpNilai) / 1000) * 1000;
+    const pajak = pph21Setahun(brutoSetahun, iuranSetahun, ptkpNilai);
+    return { brutoSetahun, biaya, ptkpNilai, pkp, pajak };
+  };
+  const tr2 = (label, nilai, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + label + '</td><td class="r">' + nilai + '</td></tr>';
+  const trTeks = (label, teks) => '<tr><td class="lb">' + label + '</td><td>' + teks + '</td></tr>';
+  const tr4 = (a, b, c, d, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + a + '</td><td class="r">' + b + '</td><td class="r">' + c + '</td><td class="r">' + d + '</td></tr>';
+  const ptkpTabel = Object.entries(PTKP).map(([k, v]) => tr2(k, rupiah(v))).join('');
+  const contohA = ['TK/0', 'K/0', 'K/1', 'K/2', 'K/3'].map(k => {
+    const c = hitung(6000000, 1800000, k);
+    return tr4(k, rupiah(c.pkp), rupiah(c.pajak), rupiah(c.pajak / 12));
+  }).join('');
+  const cB = hitung(25000000, 18000000, 'TK/0');
+
+  el('printArea').innerHTML =
+    '<div class="pph">' +
+      '<h1>PENJELASAN PERHITUNGAN PPh 21</h1>' +
+      '<div class="sub">Konsep dasar dan contoh perhitungan pajak penghasilan karyawan</div>' +
+
+      '<h2>1. Apa itu PPh 21</h2>' +
+      '<p>PPh 21 adalah pajak atas penghasilan berupa gaji, upah, tunjangan, uang lembur, honorarium, dan pembayaran lain sehubungan dengan pekerjaan yang diterima orang pribadi. Pajak ini dipotong oleh pemberi kerja dari penghasilan karyawan lalu disetorkan ke negara, sehingga yang diterima karyawan adalah penghasilan setelah dipotong pajak.</p>' +
+
+      '<h2>2. Konsep-konsep penting</h2>' +
+      '<table><colgroup><col style="width:28%"><col style="width:72%"></colgroup>' +
+        trTeks('Penghasilan bruto', 'Seluruh penghasilan sebulan: gaji pokok, tunjangan tetap, dan uang lembur. Ini dasar perhitungan pajak.') +
+        trTeks('Biaya jabatan', 'Pengurang 5% dari penghasilan bruto, paling banyak Rp500.000/bulan atau Rp6.000.000/tahun.') +
+        trTeks('Iuran JHT &amp; JP', 'Iuran yang dibayar karyawan (2% JHT + 1% JP) boleh dikurangkan. Iuran BPJS Kesehatan (1%) tidak boleh dikurangkan.') +
+        trTeks('PTKP', 'Penghasilan Tidak Kena Pajak. Batas penghasilan bebas pajak, besarnya tergantung status kawin dan jumlah tanggungan.') +
+        trTeks('PKP', 'Penghasilan Kena Pajak = bruto &minus; biaya jabatan &minus; iuran &minus; PTKP, dibulatkan turun ke ribuan. Bila nol atau negatif, pajaknya nol.') +
+        trTeks('Tarif progresif', 'Tarif berlapis: PKP dipotong per lapisan, makin besar lapisannya makin tinggi tarifnya.') +
+        trTeks('TER', 'Tarif Efektif Rata-rata untuk pemotongan bulanan sejak 2024. Dijelaskan pada bagian 5.') +
+      '</table>' +
+
+      '<h2>3. Urutan perhitungan (metode tahunan)</h2>' +
+      '<ol>' +
+        '<li>Tentukan penghasilan bruto setahun (bruto sebulan &times; 12, ditambah THR/bonus bila ada).</li>' +
+        '<li>Hitung biaya jabatan: 5% &times; bruto setahun, maksimal Rp6.000.000.</li>' +
+        '<li>Jumlahkan pengurang: biaya jabatan + iuran JHT + JP setahun.</li>' +
+        '<li>Hitung PKP: bruto setahun &minus; pengurang &minus; PTKP, lalu bulatkan turun ke ribuan.</li>' +
+        '<li>Kalikan PKP dengan tarif berlapis untuk mendapat pajak setahun.</li>' +
+        '<li>Bagi pajak setahun dengan 12 untuk mendapat PPh 21 sebulan.</li>' +
+      '</ol>' +
+
+      '<h2>4. Tarif berlapis (PP 58/2023)</h2>' +
+      '<table>' +
+        tr2('Lapisan PKP', 'Tarif', 'kepala') +
+        tr2('sampai Rp60.000.000', '5%') +
+        tr2('di atas Rp60.000.000 &ndash; Rp250.000.000', '15%') +
+        tr2('di atas Rp250.000.000 &ndash; Rp500.000.000', '25%') +
+        tr2('di atas Rp500.000.000 &ndash; Rp5.000.000.000', '30%') +
+        tr2('di atas Rp5.000.000.000', '35%') +
+      '</table>' +
+
+      '<h2>5. Tarif Efektif Rata-rata / TER (Lampiran PP 58/2023)</h2>' +
+      '<p>Sejak 1 Januari 2024, pemotongan PPh 21 bulanan tidak lagi menghitung ulang setahun setiap bulan. Pemberi kerja cukup mengalikan penghasilan bruto bulanan dengan satu tarif efektif (TER) yang dibaca dari tabel Lampiran PP 58/2023. Karena itu tarifnya berbeda-beda menurut bruto bulanan, bukan persentase tetap.</p>' +
+      '<p>Tabel TER dibagi tiga kategori sesuai status PTKP:</p>' +
+      '<table><colgroup><col style="width:28%"><col style="width:72%"></colgroup>' +
+        trTeks('Kategori A', 'PTKP TK/0, TK/1, dan K/0 (Rp54.000.000 dan Rp58.500.000).') +
+        trTeks('Kategori B', 'PTKP TK/2, TK/3, K/1, dan K/2 (Rp63.000.000 dan Rp67.500.000).') +
+        trTeks('Kategori C', 'PTKP K/3 (Rp72.000.000).') +
+      '</table>' +
+      '<p>Tarifnya naik bertingkat mengikuti bruto bulanan. Pada Kategori A, tarifnya mulai 0% untuk bruto sampai Rp5.400.000, lalu naik bertahap hingga 34% untuk bruto di atas Rp1.400.000.000.</p>' +
+      '<p>TER dipakai untuk Masa Pajak Januari&ndash;November. Pada Masa Pajak Desember, PPh 21 dihitung ulang memakai tarif berlapis (metode tahunan), lalu dikurangi PPh 21 yang sudah dipotong Januari&ndash;November. Dengan begitu jumlah setahun tetap sesuai tarif progresif.</p>' +
+
+      '<h2>6. PTKP (PMK 101/2016)</h2>' +
+      '<table>' + ptkpTabel + '</table>' +
+      '<p class="kecil">TK = tidak kawin, K = kawin; angka setelah garis miring adalah jumlah tanggungan (maksimal 3).</p>' +
+
+      '<h2>7. Contoh perhitungan</h2>' +
+      '<p><b>Contoh A.</b> Penghasilan bruto Rp6.000.000 sebulan (Rp72.000.000 setahun) dengan iuran JHT + JP Rp1.800.000 setahun. Biaya jabatan = 5% &times; Rp72.000.000 = Rp3.600.000. Hasilnya berbeda-beda tergantung status PTKP:</p>' +
+      '<table>' +
+        tr4('PTKP', 'PKP setahun', 'PPh 21 setahun', 'PPh 21/bulan', 'kepala') +
+        contohA +
+      '</table>' +
+      '<p class="kecil">Makin besar PTKP, makin kecil PKP dan pajaknya. Status K/2 dan K/3 tidak membayar pajak karena PKP-nya nol.</p>' +
+
+      '<p><b>Contoh B.</b> Penghasilan bruto Rp25.000.000 sebulan (Rp300.000.000 setahun), iuran JHT + JP Rp18.000.000 setahun, status TK/0. Di sini PKP masuk dua lapisan tarif sekaligus:</p>' +
+      '<table>' +
+        tr2('Bruto setahun', rupiah(cB.brutoSetahun)) +
+        tr2('Biaya jabatan (5%, maks Rp6.000.000)', '&minus;' + rupiah(cB.biaya)) +
+        tr2('Iuran JHT + JP setahun', '&minus;' + rupiah(18000000)) +
+        tr2('PTKP TK/0', '&minus;' + rupiah(cB.ptkpNilai)) +
+        tr2('PKP', rupiah(cB.pkp), 'sub') +
+        tr2('Pajak lapisan 1: 5% &times; Rp60.000.000', rupiah(3000000)) +
+        tr2('Pajak lapisan 2: 15% &times; ' + rupiah(cB.pkp - 60000000), rupiah(cB.pajak - 3000000)) +
+        tr2('Pajak setahun', rupiah(cB.pajak), 'sub') +
+        tr2('PPh 21 per bulan', rupiah(cB.pajak / 12), 'sub') +
+      '</table>' +
+
+      '<p><b>Contoh C.</b> Bruto Rp6.000.000 sebulan, status TK/0 sehingga masuk Kategori A. Dari tabel TER Lampiran PP 58/2023, bruto di atas Rp5.950.000 sampai Rp6.300.000 dikenai tarif 0,75%. Pemotongan bulanannya = 0,75% &times; Rp6.000.000 = <b>Rp45.000</b>. Bandingkan dengan metode tahunan pada Contoh A yang menghasilkan Rp52.500/bulan &mdash; selisihnya akan diselesaikan lewat perhitungan tahunan di Desember.</p>' +
+
+      '<h2>8. Catatan</h2>' +
+      '<p class="kecil">Dokumen ini bersifat edukasi, bukan perhitungan resmi pemotongan pajak maupun nasihat perpajakan. Angka pada contoh memakai asumsi sederhana (penghasilan tetap tiap bulan, tanpa THR/bonus). Tabel TER mengacu pada Lampiran PP 58/2023 dan PTKP pada PMK 101/2016. Aturan perpajakan dapat berubah &mdash; rujuk PMK/PP terbaru atau konsultan pajak untuk perhitungan resmi.</p>' +
+    '</div>';
 }
 
 function exportData() {
@@ -548,7 +686,8 @@ function loadKaryawan() {
   };
 });
 
-el('btnPdf').onclick = () => { renderPrint(); window.print(); };
+el('btnPdf').onclick = () => { renderPrint(); window.print(); renderPrint(); };
+el('btnPph').onclick = () => { renderPph(); window.print(); renderPrint(); };
 
 el('btnExport').onclick = exportData;
 
