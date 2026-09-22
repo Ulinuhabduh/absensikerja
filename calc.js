@@ -23,12 +23,14 @@ function jamLemburPenuh(jam) {
   return 19 + 4 * (jam - 9);
 }
 
-function jamLemburHari(rec) {
+// istirahat = jam istirahat setelah shift normal: 0 (mode 11 jam) atau 1 (mode 10 jam + 1 jam istirahat)
+function jamLemburHari(rec, istirahat) {
   if (!rec || rec.libur || !rec.masuk || !rec.keluar) return 0;
   const menit = toMinutes(rec.keluar) - toMinutes(rec.masuk);
   if (menit <= 0) return 0;
   if (rec.lembur) return jamLemburPenuh(Math.floor(menit / 60));
-  const otMenit = toMinutes(rec.keluar) - toMinutes(AKHIR_KERJA_NORMAL);
+  const batas = toMinutes(AKHIR_KERJA_NORMAL) + (istirahat || 0) * 60;
+  const otMenit = toMinutes(rec.keluar) - batas;
   return jamLemburNormal(Math.floor(Math.max(0, otMenit) / 60));
 }
 
@@ -63,22 +65,22 @@ function upahPerJam(gajiPokok) {
 }
 
 // Upah satu hari: hari kerja normal = 8 jam + lembur hari itu; hari Lembur = hitungan lemburnya saja
-function pendapatanHari(rec, gajiPokok) {
+function pendapatanHari(rec, gajiPokok, istirahat) {
   if (!rec || rec.libur) return 0;
   const rate = upahPerJam(gajiPokok);
-  if (rec.lembur) return jamLemburHari(rec) * rate;
+  if (rec.lembur) return jamLemburHari(rec, istirahat) * rate;
   if (!rec.masuk || !rec.keluar) return 0;
-  return (JAM_KERJA_SEHARI + jamLemburHari(rec)) * rate;
+  return (JAM_KERJA_SEHARI + jamLemburHari(rec, istirahat)) * rate;
 }
 
-function ringkasanBulan(data, bulan, gajiPokok) {
+function ringkasanBulan(data, bulan, gajiPokok, istirahat) {
   let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0;
   for (const [tgl, rec] of Object.entries(data)) {
     if (!tgl.startsWith(bulan)) continue;
     if (rec.libur) { hariLibur++; continue; }
-    if (rec.lembur) { hariLembur++; jam += jamLemburHari(rec); continue; }
+    if (rec.lembur) { hariLembur++; jam += jamLemburHari(rec, istirahat); continue; }
     if (rec.masuk && rec.keluar) hariKerja++;
-    jam += jamLemburHari(rec);
+    jam += jamLemburHari(rec, istirahat);
   }
   const rate = upahPerJam(gajiPokok);
   const gajiHarian = JAM_KERJA_SEHARI * rate * hariKerja;
@@ -93,10 +95,10 @@ function ringkasanBulan(data, bulan, gajiPokok) {
 }
 
 // Akumulasi berurutan: upah hari itu + total berjalan sampai akhir bulan
-function akumulasiHarian(data, bulan, gajiPokok) {
+function akumulasiHarian(data, bulan, gajiPokok, istirahat) {
   let total = 0;
   return Object.keys(data).filter(k => k.startsWith(bulan)).sort().map(k => {
-    const upah = pendapatanHari(data[k], gajiPokok);
+    const upah = pendapatanHari(data[k], gajiPokok, istirahat);
     total += upah;
     return { tanggal: k, rec: data[k], upah, akumulasi: total };
   });
@@ -136,8 +138,8 @@ function pph21Setahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
   return pajak;
 }
 
-function hitungGaji(data, bulan, gajiPokok, ptkp) {
-  const s = ringkasanBulan(data, bulan, gajiPokok);
+function hitungGaji(data, bulan, gajiPokok, ptkp, istirahat) {
+  const s = ringkasanBulan(data, bulan, gajiPokok, istirahat);
   const bpjsTk = gajiPokok * 0.03;
   const bpjsKes = gajiPokok * 0.01;
   const pph = pph21Setahun(s.total * 12, bpjsTk * 12, PTKP[ptkp] || 0) / 12;

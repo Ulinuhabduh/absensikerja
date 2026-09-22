@@ -22,6 +22,11 @@ assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', lembur: true
 assert.strictEqual(jamLemburHari({ masuk: '05:50', keluar: '14:00' }), 0);
 assert.strictEqual(jamLemburHari({}), 0);
 
+// Mode istirahat 1 jam: batas lembur geser ke 15:00 -> 2 jam = 3,5
+assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00' }, 1), 3.5);
+assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '15:00' }, 1), 0);
+assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', lembur: true }, 1), 27);
+
 // Sanitasi data import
 assert.deepStrictEqual(bersihkanRekaman({ masuk: '6:00', keluar: '17:00:00', lembur: 1 }),
   { masuk: '06:00', keluar: '17:00', lembur: true });
@@ -49,6 +54,7 @@ assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00', lembur: tru
 assert.strictEqual(pendapatanHari({ libur: true }, GAJI_POKOK), 0);
 assert.strictEqual(pendapatanHari({ masuk: '06:00' }, GAJI_POKOK), 0);
 assert.strictEqual(pendapatanHari({}, GAJI_POKOK), 0);
+assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00' }, GAJI_POKOK, 1) - 11.5 * rate) < 1e-9);
 
 // Ringkasan bulan: pokok ikut hari yang tercatat, bukan dibayar penuh
 const data = {
@@ -93,5 +99,12 @@ assert.ok(Math.abs(g.bpjsKes - GAJI_POKOK * 0.01) < 1e-9);
 assert.strictEqual(g.bruto, g.total);
 assert.ok(Math.abs(g.bersih - (g.bruto - g.bpjsTk - g.bpjsKes - g.pph)) < 1e-9);
 assert.ok(g.bersih < g.bruto);
+
+// Mode 1 jam istirahat: total jam lembur bulan turun (5,5 -> 3,5), bruto ikut turun
+const s2 = ringkasanBulan(data, '2026-09', GAJI_POKOK, 1);
+assert.strictEqual(s2.jam, 30.5);
+assert.ok(Math.abs(s2.total - (8 * rate + 30.5 * rate)) < 1e-9);
+const g2 = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', 1);
+assert.ok(g2.bruto < g.bruto);
 
 console.log('OK - semua perhitungan benar');

@@ -46,6 +46,10 @@ input:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .month-nav strong{font-size:1rem}
 .month-nav button{border:1px solid var(--line);background:#fff;width:36px;height:36px;border-radius:10px;font-size:1.1rem;cursor:pointer;color:var(--text)}
 .month-nav button:disabled{opacity:.3;cursor:not-allowed}
+.mode{display:flex;flex-direction:column;gap:7px;margin-bottom:14px;padding:11px 13px;background:var(--bg);border-radius:12px}
+.mode>span{font-size:.64rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+.mode label{display:flex;align-items:center;font-size:.82rem;cursor:pointer}
+.mode input[type=radio]{width:auto;margin:0 8px 0 0;padding:0;accent-color:var(--blue)}
 table{width:100%;border-collapse:collapse;font-size:.78rem}
 .table-wrap{overflow-x:auto;margin:0 -2px}
 th{text-align:left;color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;padding:0 4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -74,9 +78,9 @@ td.num,th.num{text-align:right}
 .summary select{border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font-size:.82rem;font-family:inherit;background:#fff;color:var(--text)}
 .days{font-size:.78rem;color:var(--muted);margin-top:6px}
 .ket-select{margin-top:10px}
-#printArea{display:none}
+#printArea{display:none;padding:0 8mm}
 #printArea .p-title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.08em;margin:0 0 3mm}
-#printArea .p-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 8mm;font-size:10pt;margin-bottom:3mm}
+#printArea .p-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 8mm;font-size:10pt;margin-bottom:3mm;padding-left:2mm}
 #printArea .p-meta div{display:flex;gap:2mm}
 #printArea .p-meta span{min-width:24mm;color:#333}
 #printArea table{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -136,6 +140,11 @@ td.num,th.num{text-align:right}
       <button id="btnPrev" aria-label="Bulan sebelumnya">&#8249;</button>
       <strong id="monthLabel"></strong>
       <button id="btnNext" aria-label="Bulan berikutnya">&#8250;</button>
+    </div>
+    <div class="mode">
+      <span>Mode Jam Kerja</span>
+      <label><input type="radio" name="mode" value="0"> 11 jam (8 jam kerja + 3 jam lembur)</label>
+      <label><input type="radio" name="mode" value="1"> 10 jam kerja + 1 jam istirahat (lembur 2 jam)</label>
     </div>
     <div class="table-wrap">
       <table>
@@ -228,6 +237,7 @@ const KEY_GAJI = 'absensi-harian-gaji';
 const KEY_PTKP = 'absensi-harian-ptkp';
 const KEY_HIDE = 'absensi-harian-hide';
 const KEY_KARYAWAN = 'absensi-harian-karyawan';
+const KEY_MODE = 'absensi-harian-mode';
 
 const el = id => document.getElementById(id);
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -243,6 +253,7 @@ let ptkp = 'TK/0';
 let tersembunyi = localStorage.getItem(KEY_HIDE) === '1';
 let karyawan = { nama: '', noid: '', dept: '', kerja: '' };
 try { karyawan = Object.assign(karyawan, JSON.parse(localStorage.getItem(KEY_KARYAWAN)) || {}); } catch (e) { }
+let istirahat = Number(localStorage.getItem(KEY_MODE)) || 0;
 let manLembur = false;
 let manLibur = false;
 let manKet = '';
@@ -285,8 +296,8 @@ function renderToday() {
   el('todayDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   el('masukTime').textContent = r.masuk ? rahasia(r.masuk) : '--:--';
   el('keluarTime').textContent = r.keluar ? rahasia(r.keluar) : '--:--';
-  el('todayOt').textContent = rahasia(angka(jamLemburHari(r)));
-  el('todayPay').textContent = rahasia(rupiahRingkas(pendapatanHari(r, gajiPokok)));
+  el('todayOt').textContent = rahasia(angka(jamLemburHari(r, istirahat)));
+  el('todayPay').textContent = rahasia(rupiahRingkas(pendapatanHari(r, gajiPokok, istirahat)));
   el('btnMasuk').disabled = !!r.masuk || !!r.libur;
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
   el('btnLembur').classList.toggle('active', !!r.lembur);
@@ -299,7 +310,7 @@ function renderMonth() {
   const [y, m] = viewMonth.split('-').map(Number);
   el('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
-  const rows = akumulasiHarian(data, viewMonth, gajiPokok);
+  const rows = akumulasiHarian(data, viewMonth, gajiPokok, istirahat);
   const tbody = el('monthRows');
   tbody.innerHTML = '';
   if (!rows.length) {
@@ -315,11 +326,11 @@ function renderMonth() {
     const tr = document.createElement('tr');
     tr.className = 'clickable';
     tr.onclick = () => openManual(row.tanggal);
-    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td><td>' + badge + '</td>';
+    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r, istirahat))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td><td>' + badge + '</td>';
     tbody.appendChild(tr);
   }
 
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp);
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat);
   el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
   el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
   el('sumGajiHarian').textContent = rahasia(rupiah(g.gajiHarian));
@@ -368,6 +379,7 @@ function exportData() {
     exported: new Date().toISOString(),
     gaji_pokok: gajiPokok || null,
     ptkp,
+    istirahat,
     karyawan,
     data,
   };
@@ -507,6 +519,15 @@ el('selPtkp').onchange = () => {
   renderMonth();
 };
 
+document.querySelectorAll('input[name=mode]').forEach(radio => {
+  radio.checked = Number(radio.value) === istirahat;
+  radio.onchange = () => {
+    istirahat = Number(radio.value);
+    localStorage.setItem(KEY_MODE, String(istirahat));
+    render();
+  };
+});
+
 function loadKaryawan() {
   el('karNama').value = karyawan.nama || '';
   el('karNoid').value = karyawan.noid || '';
@@ -549,6 +570,21 @@ el('importFile').onchange = async () => {
       localStorage.setItem(KEY_PTKP, ptkp);
       el('selPtkp').value = ptkp;
     }
+    if (parsed && parsed.istirahat != null) {
+      istirahat = Number(parsed.istirahat) ? 1 : 0;
+      localStorage.setItem(KEY_MODE, String(istirahat));
+      document.querySelectorAll('input[name=mode]').forEach(radio => { radio.checked = Number(radio.value) === istirahat; });
+    }
+    if (parsed && parsed.karyawan && typeof parsed.karyawan === 'object') {
+      karyawan = {
+        nama: String(parsed.karyawan.nama || ''),
+        noid: String(parsed.karyawan.noid || ''),
+        dept: String(parsed.karyawan.dept || ''),
+        kerja: String(parsed.karyawan.kerja || ''),
+      };
+      localStorage.setItem(KEY_KARYAWAN, JSON.stringify(karyawan));
+      loadKaryawan();
+    }
     render();
     el('backupMsg').textContent = n + ' tanggal berhasil diimport.';
   } catch (e) {
@@ -569,6 +605,7 @@ ptkp = localStorage.getItem(KEY_PTKP) || 'TK/0';
 if (!PTKP[ptkp]) ptkp = 'TK/0';
 el('selPtkp').value = ptkp;
 el('gajiCard').hidden = gajiPokok > 0;
+loadKaryawan();
 syncHideButton();
 render();
 </script>
