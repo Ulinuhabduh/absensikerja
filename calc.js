@@ -41,8 +41,21 @@ function bersihkanRekaman(r) {
   if (masuk) out.masuk = masuk[1].padStart(2, '0') + ':' + masuk[2];
   if (keluar) out.keluar = keluar[1].padStart(2, '0') + ':' + keluar[2];
   if (r.lembur) out.lembur = true;
-  if (r.libur) out.libur = true;
+  if (r.libur) {
+    out.libur = true;
+    if (r.ket === 'izin' || r.ket === 'alfa') out.ket = r.ket;
+  }
   return out;
+}
+
+const KET_LIBUR = { '': 'Libur', izin: 'Izin', alfa: 'Alfa' };
+
+// Keterangan untuk lembar absensi: Masuk, Masuk (Lembur), Libur/Izin/Alfa
+function keterangan(rec) {
+  if (!rec) return '';
+  if (rec.libur) return KET_LIBUR[rec.ket] || 'Libur';
+  if (!rec.masuk) return '';
+  return rec.lembur ? 'Masuk (Lembur)' : 'Masuk';
 }
 
 function upahPerJam(gajiPokok) {
@@ -137,5 +150,5 @@ function hitungGaji(data, bulan, gajiPokok, ptkp) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji };
 }

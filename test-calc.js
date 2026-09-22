@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji } = require('./calc.js');
+const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji } = require('./calc.js');
 
 const GAJI_POKOK = 4245927;
 
@@ -28,6 +28,17 @@ assert.deepStrictEqual(bersihkanRekaman({ masuk: '6:00', keluar: '17:00:00', lem
 assert.deepStrictEqual(bersihkanRekaman({ masuk: 'abc', keluar: null, libur: true }), { libur: true });
 assert.strictEqual(bersihkanRekaman(null), null);
 assert.strictEqual(bersihkanRekaman('2026-09-01'), null);
+assert.deepStrictEqual(bersihkanRekaman({ libur: true, ket: 'izin' }), { libur: true, ket: 'izin' });
+assert.deepStrictEqual(bersihkanRekaman({ libur: true, ket: 'ngawur' }), { libur: true });
+
+// Keterangan lembar absensi
+assert.strictEqual(keterangan(null), '');
+assert.strictEqual(keterangan({}), '');
+assert.strictEqual(keterangan({ masuk: '06:00', keluar: '17:00' }), 'Masuk');
+assert.strictEqual(keterangan({ masuk: '06:00', keluar: '17:00', lembur: true }), 'Masuk (Lembur)');
+assert.strictEqual(keterangan({ libur: true }), 'Libur');
+assert.strictEqual(keterangan({ libur: true, ket: 'izin' }), 'Izin');
+assert.strictEqual(keterangan({ libur: true, ket: 'alfa' }), 'Alfa');
 
 // Upah per hari: 8 jam x upah/jam + lembur hari itu
 const rate = GAJI_POKOK / 173;

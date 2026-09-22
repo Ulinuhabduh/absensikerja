@@ -73,6 +73,22 @@ td.num,th.num{text-align:right}
 .summary .row.pot{border-top:1px dashed var(--line);padding-top:8px}
 .summary select{border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font-size:.82rem;font-family:inherit;background:#fff;color:var(--text)}
 .days{font-size:.78rem;color:var(--muted);margin-top:6px}
+.ket-select{margin-top:10px}
+#printArea{display:none}
+#printArea .p-title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.08em;margin:0 0 3mm}
+#printArea .p-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 8mm;font-size:10pt;margin-bottom:3mm}
+#printArea .p-meta div{display:flex;gap:2mm}
+#printArea .p-meta span{min-width:24mm;color:#333}
+#printArea table{width:100%;border-collapse:collapse;table-layout:fixed}
+#printArea th,#printArea td{border:1px solid #000;height:7mm;padding:0 1.5mm;font-size:9pt;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+#printArea th{background:#eee;font-size:8.5pt;text-align:center;text-transform:uppercase}
+#printArea td.c{text-align:center}
+@page{size:A4 portrait;margin:10mm 12mm}
+@media print{
+  body{background:#fff}
+  main{display:none}
+  #printArea{display:block}
+}
 </style>
 </head>
 <body>
@@ -106,6 +122,11 @@ td.num,th.num{text-align:right}
       <button class="toggle lembur" id="btnLembur">Lembur</button>
       <button class="toggle libur" id="btnLibur">Libur</button>
     </div>
+    <select class="ket-select" id="ketLibur" hidden>
+      <option value="">Libur</option>
+      <option value="izin">Izin</option>
+      <option value="alfa">Alfa</option>
+    </select>
     <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung.</p>
     <button class="reset" id="btnReset">Reset hari ini</button>
   </section>
@@ -135,6 +156,11 @@ td.num,th.num{text-align:right}
         <button class="toggle lembur" id="manLembur">Lembur</button>
         <button class="toggle libur" id="manLibur">Libur</button>
       </div>
+      <select class="ket-select" id="manKet" hidden>
+        <option value="">Libur</option>
+        <option value="izin">Izin</option>
+        <option value="alfa">Alfa</option>
+      </select>
       <div class="actions" style="margin:12px 0 0">
         <button class="btn masuk" id="manSave">Simpan</button>
         <button class="btn gray" id="manCancel">Tutup</button>
@@ -167,6 +193,18 @@ td.num,th.num{text-align:right}
       <div class="days" id="sumHari"></div>
       <p class="hint">Gaji harian = 8 jam &times; upah per jam, hanya untuk hari kerja yang tercatat (hari tanpa catatan tidak dapat pokok). Hari Lembur dibayar dari hitungan jam lemburnya. Potongan BPJS dari gaji pokok acuan; PPh 21 estimasi bruto setahun &divide; 12.</p>
     </div>
+    <button class="btn keluar" id="btnPdf" style="width:100%;margin-top:16px">Download PDF Bulan Ini</button>
+    <p class="hint">Terbuka dialog print &mdash; pilih "Save as PDF". Hasilnya 1 halaman A4, 31 baris tanggal.</p>
+  </section>
+
+  <section class="card">
+    <div class="date">Data Karyawan (untuk PDF)</div>
+    <div class="manual-grid">
+      <label class="full">Nama<input type="text" id="karNama"></label>
+      <label>No. ID<input type="text" id="karNoid"></label>
+      <label>Departemen<input type="text" id="karDept"></label>
+      <label class="full">Pekerjaan<input type="text" id="karKerja"></label>
+    </div>
   </section>
 
   <section class="card">
@@ -181,12 +219,15 @@ td.num,th.num{text-align:right}
   </section>
 </main>
 
+<div id="printArea"></div>
+
 <script src="calc.js"></script>
 <script>
 const KEY = 'absensi-harian-v1';
 const KEY_GAJI = 'absensi-harian-gaji';
 const KEY_PTKP = 'absensi-harian-ptkp';
 const KEY_HIDE = 'absensi-harian-hide';
+const KEY_KARYAWAN = 'absensi-harian-karyawan';
 
 const el = id => document.getElementById(id);
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -200,8 +241,11 @@ const save = () => localStorage.setItem(KEY, JSON.stringify(data));
 let gajiPokok = 0;
 let ptkp = 'TK/0';
 let tersembunyi = localStorage.getItem(KEY_HIDE) === '1';
+let karyawan = { nama: '', noid: '', dept: '', kerja: '' };
+try { karyawan = Object.assign(karyawan, JSON.parse(localStorage.getItem(KEY_KARYAWAN)) || {}); } catch (e) { }
 let manLembur = false;
 let manLibur = false;
+let manKet = '';
 let viewMonth = todayKey().slice(0, 7);
 let lastDay = todayKey();
 
@@ -231,9 +275,10 @@ function shiftMonth(ym, delta) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
-function render() { renderToday(); renderMonth(); }
+function render() { renderToday(); renderMonth(); renderPrint(); }
 
 const rahasia = v => tersembunyi ? '***' : v;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function renderToday() {
   const r = rec();
@@ -246,6 +291,8 @@ function renderToday() {
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
   el('btnLembur').classList.toggle('active', !!r.lembur);
   el('btnLibur').classList.toggle('active', !!r.libur);
+  el('ketLibur').hidden = !r.libur;
+  el('ketLibur').value = r.ket || '';
 }
 
 function renderMonth() {
@@ -287,6 +334,33 @@ function renderMonth() {
   el('btnNext').disabled = viewMonth >= todayKey().slice(0, 7);
 }
 
+function renderPrint() {
+  const [y, m] = viewMonth.split('-').map(Number);
+  const periode = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  const akhir = new Date(y, m, 0).getDate();
+  let rows = '';
+  for (let d = 1; d <= 31; d++) {
+    const ada = d <= akhir;
+    const r = ada ? data[viewMonth + '-' + String(d).padStart(2, '0')] : null;
+    rows += '<tr><td class="c">' + (ada ? d : '') + '</td>' +
+      '<td class="c">' + (r && r.masuk ? esc(r.masuk) : '') + '</td>' +
+      '<td class="c">' + (r && r.keluar ? esc(r.keluar) : '') + '</td>' +
+      '<td></td><td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
+  }
+  el('printArea').innerHTML =
+    '<div class="p-title">ABSENSI HARIAN</div>' +
+    '<div class="p-meta">' +
+      '<div><span>Pekerjaan</span>: <b>' + esc(karyawan.kerja) + '</b></div>' +
+      '<div><span>Nama</span>: <b>' + esc(karyawan.nama) + '</b></div>' +
+      '<div><span>No. ID</span>: <b>' + esc(karyawan.noid) + '</b></div>' +
+      '<div><span>Departemen</span>: <b>' + esc(karyawan.dept) + '</b></div>' +
+      '<div><span>Periode</span>: <b>' + periode + '</b></div>' +
+    '</div>' +
+    '<table><colgroup><col style="width:12%"><col style="width:18%"><col style="width:18%"><col style="width:27%"><col style="width:25%"></colgroup>' +
+    '<thead><tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>TTD</th><th>Keterangan</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
+}
+
 function exportData() {
   const payload = {
     app: 'absensi-harian',
@@ -294,6 +368,7 @@ function exportData() {
     exported: new Date().toISOString(),
     gaji_pokok: gajiPokok || null,
     ptkp,
+    karyawan,
     data,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -327,8 +402,12 @@ function importData(parsed) {
 
 el('btnMasuk').onclick = () => setRec({ masuk: nowTime() });
 el('btnKeluar').onclick = () => setRec({ keluar: nowTime() });
-el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false });
-el('btnLibur').onclick = () => setRec({ libur: !rec().libur, lembur: false });
+el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false, ket: null });
+el('btnLibur').onclick = () => {
+  const r = rec();
+  setRec({ libur: !r.libur, lembur: false, ket: r.libur ? null : (r.ket || null) });
+};
+el('ketLibur').onchange = () => setRec({ ket: el('ketLibur').value || null });
 el('btnReset').onclick = () => {
   if (!confirm('Hapus data absensi hari ini?')) return;
   deleteRec(todayKey());
@@ -351,6 +430,8 @@ el('btnHide').onclick = () => {
 function syncManToggles() {
   el('manLembur').classList.toggle('active', manLembur);
   el('manLibur').classList.toggle('active', manLibur);
+  el('manKet').hidden = !manLibur;
+  el('manKet').value = manKet;
 }
 
 function loadManual(k) {
@@ -359,6 +440,7 @@ function loadManual(k) {
   el('manKeluar').value = r.keluar || '';
   manLembur = !!r.lembur;
   manLibur = !!r.libur;
+  manKet = r.ket || '';
   el('manHapus').hidden = !data[k];
   el('manMsg').textContent = '';
   syncManToggles();
@@ -376,8 +458,9 @@ function openManual(k) {
 el('btnManual').onclick = () => openManual('');
 el('manCancel').onclick = () => { el('manualForm').hidden = true; el('btnManual').hidden = false; };
 el('manDate').onchange = () => loadManual(el('manDate').value);
-el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) manLibur = false; syncManToggles(); };
-el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) manLembur = false; syncManToggles(); };
+el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) { manLibur = false; manKet = ''; } syncManToggles(); };
+el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) manLembur = false; else manKet = ''; syncManToggles(); };
+el('manKet').onchange = () => { manKet = el('manKet').value; };
 
 el('manSave').onclick = () => {
   const k = el('manDate').value;
@@ -387,7 +470,7 @@ el('manSave').onclick = () => {
   if (keluar && !masuk) { el('manMsg').textContent = 'Jam keluar tidak bisa diisi tanpa jam masuk.'; return; }
   if (!masuk && !manLembur && !manLibur) { el('manMsg').textContent = 'Isi jam masuk, atau tandai Lembur/Libur.'; return; }
   viewMonth = k.slice(0, 7);
-  saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: manLibur });
+  saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: manLibur, ket: manLibur ? (manKet || null) : null });
   loadManual(k);
   el('manMsg').textContent = 'Tersimpan.';
 };
@@ -423,6 +506,28 @@ el('selPtkp').onchange = () => {
   localStorage.setItem(KEY_PTKP, ptkp);
   renderMonth();
 };
+
+function loadKaryawan() {
+  el('karNama').value = karyawan.nama || '';
+  el('karNoid').value = karyawan.noid || '';
+  el('karDept').value = karyawan.dept || '';
+  el('karKerja').value = karyawan.kerja || '';
+}
+
+['karNama', 'karNoid', 'karDept', 'karKerja'].forEach(id => {
+  el(id).oninput = () => {
+    karyawan = {
+      nama: el('karNama').value.trim(),
+      noid: el('karNoid').value.trim(),
+      dept: el('karDept').value.trim(),
+      kerja: el('karKerja').value.trim(),
+    };
+    localStorage.setItem(KEY_KARYAWAN, JSON.stringify(karyawan));
+    renderPrint();
+  };
+});
+
+el('btnPdf').onclick = () => { renderPrint(); window.print(); };
 
 el('btnExport').onclick = exportData;
 
