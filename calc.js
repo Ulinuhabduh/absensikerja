@@ -138,19 +138,33 @@ const LAPISAN_PPH = [
   [Infinity, 0.35],
 ];
 
-// Estimasi PPh 21 setahun: bruto - biaya jabatan 5% (maks 6jt) - JHT/JP - PTKP, tarif progresif
-function pph21Setahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
+function pkpSetahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
   const biayaJabatan = Math.min(brutoSetahun * 0.05, 6000000);
-  const pkp = Math.floor(Math.max(0, brutoSetahun - biayaJabatan - potonganBpjsTkSetahun - ptkp) / 1000) * 1000;
-  if (pkp <= 0) return 0;
-  let pajak = 0, bawah = 0;
+  return Math.floor(Math.max(0, brutoSetahun - biayaJabatan - potonganBpjsTkSetahun - ptkp) / 1000) * 1000;
+}
+
+// Rincian per lapisan tarif: berapa yang kena dan pajaknya
+function rincianLapisan(pkp) {
+  const out = [];
+  let bawah = 0;
   for (const [atas, tarif] of LAPISAN_PPH) {
     const kena = Math.min(pkp, atas) - bawah;
-    if (kena > 0) pajak += kena * tarif;
+    if (kena > 0) out.push({ dari: bawah, sampai: Math.min(pkp, atas), tarif, pajak: kena * tarif });
     if (pkp <= atas) break;
     bawah = atas;
   }
-  return pajak;
+  return out;
+}
+
+// Estimasi PPh 21 setahun: bruto - biaya jabatan 5% (maks 6jt) - JHT/JP - PTKP, tarif progresif
+function pph21Setahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
+  return rincianLapisan(pkpSetahun(brutoSetahun, potonganBpjsTkSetahun, ptkp)).reduce((t, l) => t + l.pajak, 0);
+}
+
+// Ambang bruto setahun agar PKP > 0 (batas mulai kena PPh 21)
+function ambangPajakSetahun(bpjsSetahun, ptkp) {
+  const a = (bpjsSetahun + ptkp) / 0.95;
+  return a <= 120000000 ? a : 6000000 + bpjsSetahun + ptkp;
 }
 
 // thr = THR/bonus yang dibayarkan di bulan itu (0 bila tidak ada)
@@ -166,6 +180,8 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thr) {
     ? pph21Setahun(brutoSetahun + nilaiThr, bpjsTk * 12, PTKP[ptkp] || 0) - pphTeraturSetahun
     : 0;
   const pph = pphTeraturSetahun / 12 + pphThr;
+  const totalSetahun = brutoSetahun + nilaiThr;
+  const ambangSetahun = ambangPajakSetahun(bpjsTk * 12, PTKP[ptkp] || 0);
   return Object.assign({}, s, {
     bruto: s.total,
     thr: nilaiThr,
@@ -174,9 +190,12 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thr) {
     pphThr, pph,
     potongan: bpjsTk + bpjsKes + pph,
     bersih: s.total + nilaiThr - bpjsTk - bpjsKes - pph,
+    brutoTotalSetahun: totalSetahun,
+    ambangSetahun,
+    kurangSetahun: Math.max(0, ambangSetahun - totalSetahun),
   });
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, MODE_JAM, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, MODE_JAM, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, hitungGaji };
 }

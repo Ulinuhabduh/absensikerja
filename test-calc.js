@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji } = require('./calc.js');
+const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, ambangPajakSetahun, hitungGaji } = require('./calc.js');
 
 const GAJI_POKOK = 4245927;
 const rate = GAJI_POKOK / 173;
@@ -103,6 +103,14 @@ assert.strictEqual(pph21Setahun(300000000, 1500000, 54000000), 29775000);
 // biaya jabatan dipatok 6jt, PTKP K/3 lebih besar -> pajak lebih kecil
 assert.ok(pph21Setahun(300000000, 1500000, 72000000) < 29775000);
 
+// Ambang mulai kena pajak: tepat di ambang PPh 0, sedikit di atasnya sudah kena
+const bpjsSetahun = GAJI_POKOK * 0.03 * 12;
+const ambang = ambangPajakSetahun(bpjsSetahun, 54000000);
+assert.strictEqual(pph21Setahun(ambang, bpjsSetahun, 54000000), 0);
+assert.ok(pph21Setahun(ambang * 1.01, bpjsSetahun, 54000000) > 0);
+// ambang setahun / 12 = ambang bruto bulanan TK/0 (sekitar 4,87 juta)
+assert.ok(Math.abs(ambang / 12 - 4870924) < 10);
+
 // Hitung gaji: potongan BPJS dari gaji pokok, PPh dari bruto
 const g = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '12');
 assert.ok(Math.abs(g.bpjsTk - GAJI_POKOK * 0.03) < 1e-9);
@@ -112,6 +120,9 @@ assert.ok(Math.abs(g.bersih - (g.bruto - g.bpjsTk - g.bpjsKes - g.pph)) < 1e-9);
 assert.ok(g.bersih < g.bruto);
 const g11 = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '11');
 assert.ok(g11.bruto < g.bruto);
+// Penjelasan kenapa PPh 0: kurangSetahun > 0 selama belum kena pajak
+assert.ok(g.kurangSetahun > 0);
+assert.strictEqual(g.ambangSetahun, ambangPajakSetahun(bpjsSetahun, 54000000));
 
 // THR/bonus: PPh-nya selisih metode tahunan, dipotong penuh di bulan itu
 const dataBesar = {};
@@ -124,5 +135,9 @@ assert.ok(Math.abs(gT.pph - (gB.pph + gT.pphThr)) < 1e-9);
 assert.ok(Math.abs(gT.bersih - (gT.bruto + GAJI_POKOK - gT.bpjsTk - gT.bpjsKes - gT.pph)) < 1e-9);
 assert.ok(Math.abs(gT.pphThr - (pph21Setahun(gB.bruto * 12 + GAJI_POKOK, GAJI_POKOK * 0.03 * 12, 54000000)
   - pph21Setahun(gB.bruto * 12, GAJI_POKOK * 0.03 * 12, 54000000))) < 1e-9);
+
+// Sudah kena pajak -> tidak ada kekurangan
+assert.ok(gB.pph > 0);
+assert.strictEqual(gB.kurangSetahun, 0);
 
 console.log('OK - semua perhitungan benar');
