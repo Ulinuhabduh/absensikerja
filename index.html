@@ -168,8 +168,8 @@ td.num,th.num{text-align:right}
     </div>
     <div class="mode">
       <span>Mode Jam Kerja</span>
-      <label><input type="radio" name="mode" value="0"> 11 jam (8 jam kerja + 3 jam lembur)</label>
-      <label><input type="radio" name="mode" value="1"> 10 jam kerja + 1 jam istirahat (lembur 2 jam)</label>
+      <label><input type="radio" name="mode" value="12"> 12 jam (8 kerja + 1 istirahat + 3 lembur)</label>
+      <label><input type="radio" name="mode" value="11"> 11 jam (8 kerja + 1 istirahat + 2 lembur)</label>
     </div>
     <div class="table-wrap">
       <table>
@@ -297,7 +297,8 @@ let ptkp = 'TK/0';
 let tersembunyi = localStorage.getItem(KEY_HIDE) === '1';
 let karyawan = { nama: '', noid: '', dept: '', kerja: '' };
 try { karyawan = Object.assign(karyawan, JSON.parse(localStorage.getItem(KEY_KARYAWAN)) || {}); } catch (e) { }
-let istirahat = Number(localStorage.getItem(KEY_MODE)) || 0;
+let mode = localStorage.getItem(KEY_MODE) || '12';
+if (mode !== '11' && mode !== '12') mode = mode === '1' ? '11' : '12';
 let thr = {};
 try { thr = JSON.parse(localStorage.getItem(KEY_THR)) || {}; } catch (e) { thr = {}; }
 let manLembur = false;
@@ -342,8 +343,8 @@ function renderToday() {
   el('todayDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   el('masukTime').textContent = r.masuk ? rahasia(r.masuk) : '--:--';
   el('keluarTime').textContent = r.keluar ? rahasia(r.keluar) : '--:--';
-  el('todayOt').textContent = rahasia(angka(jamLemburHari(r, istirahat)));
-  el('todayPay').textContent = rahasia(rupiahRingkas(pendapatanHari(r, gajiPokok, istirahat)));
+  el('todayOt').textContent = rahasia(angka(jamLemburHari(r, mode)));
+  el('todayPay').textContent = rahasia(rupiahRingkas(pendapatanHari(r, gajiPokok, mode)));
   el('btnMasuk').disabled = !!r.masuk || !!r.libur;
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
   el('btnLembur').classList.toggle('active', !!r.lembur);
@@ -356,7 +357,7 @@ function renderMonth() {
   const [y, m] = viewMonth.split('-').map(Number);
   el('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
-  const rows = akumulasiHarian(data, viewMonth, gajiPokok, istirahat);
+  const rows = akumulasiHarian(data, viewMonth, gajiPokok, mode);
   const tbody = el('monthRows');
   tbody.innerHTML = '';
   if (!rows.length) {
@@ -372,11 +373,11 @@ function renderMonth() {
     const tr = document.createElement('tr');
     tr.className = 'clickable';
     tr.onclick = () => openManual(row.tanggal);
-    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r, istirahat))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td><td>' + badge + '</td>';
+    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r, mode))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td><td>' + badge + '</td>';
     tbody.appendChild(tr);
   }
 
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat, thr[viewMonth] || 0);
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr[viewMonth] || 0);
   el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
   el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
   el('sumGajiHarian').textContent = rahasia(rupiah(g.gajiHarian));
@@ -420,8 +421,10 @@ function renderPrint() {
       '<td class="c">' + (r && r.keluar ? esc(r.keluar) : '') + '</td>' +
       '<td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
   }
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, istirahat, thr[viewMonth] || 0);
-  const mode = istirahat ? '10 jam kerja + 1 jam istirahat' : '11 jam (8 jam kerja + 3 jam lembur)';
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr[viewMonth] || 0);
+  const modeLabel = mode === '11'
+    ? '11 jam (8 kerja + 1 istirahat + 2 lembur)'
+    : '12 jam (8 kerja + 1 istirahat + 3 lembur)';
   const baris = (label, nilai, cls) => '<div class="p-row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' + nilai + '</b></div>';
   el('printArea').innerHTML =
     '<div class="p-title">ABSENSI HARIAN</div>' +
@@ -448,7 +451,7 @@ function renderPrint() {
       baris('PPh 21 (' + esc(ptkp) + ')', '-' + rupiah(g.pphTeratur)) +
       (g.pphThr > 0 ? baris('PPh 21 atas THR', '-' + rupiah(g.pphThr)) : '') +
       baris('Gaji bersih', rupiah(g.bersih), 'total') +
-      '<div class="p-note">' + g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur · Mode: ' + mode + '</div>' +
+      '<div class="p-note">' + g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur · Mode: ' + modeLabel + '</div>' +
     '</div>';
 }
 
@@ -560,7 +563,7 @@ function exportData() {
     exported: new Date().toISOString(),
     gaji_pokok: gajiPokok || null,
     ptkp,
-    istirahat,
+    mode,
     thr,
     karyawan,
     data,
@@ -706,10 +709,10 @@ el('selPtkp').onchange = () => {
 };
 
 document.querySelectorAll('input[name=mode]').forEach(radio => {
-  radio.checked = Number(radio.value) === istirahat;
+  radio.checked = radio.value === mode;
   radio.onchange = () => {
-    istirahat = Number(radio.value);
-    localStorage.setItem(KEY_MODE, String(istirahat));
+    mode = radio.value;
+    localStorage.setItem(KEY_MODE, mode);
     render();
   };
 });
@@ -769,9 +772,9 @@ el('importFile').onchange = async () => {
       el('selPtkp').value = ptkp;
     }
     if (parsed && parsed.istirahat != null) {
-      istirahat = Number(parsed.istirahat) ? 1 : 0;
-      localStorage.setItem(KEY_MODE, String(istirahat));
-      document.querySelectorAll('input[name=mode]').forEach(radio => { radio.checked = Number(radio.value) === istirahat; });
+      mode = parsed.mode === '11' || parsed.mode === '12' ? parsed.mode : (Number(parsed.istirahat) ? '11' : '12');
+      localStorage.setItem(KEY_MODE, mode);
+      document.querySelectorAll('input[name=mode]').forEach(radio => { radio.checked = radio.value === mode; });
     }
     if (parsed && parsed.thr && typeof parsed.thr === 'object') {
       thr = {};

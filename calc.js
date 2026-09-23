@@ -2,6 +2,16 @@ const PEMBAGI_JAM = 173;
 const JAM_KERJA_SEHARI = 8;
 const AKHIR_KERJA_NORMAL = '14:00';
 
+// Mode jam kerja: istirahat dipotong dari jam kehadiran, lembur = jam lembur hari biasa
+const MODE_JAM = {
+  '12': { istirahat: 1, lembur: 3 },
+  '11': { istirahat: 1, lembur: 2 },
+};
+
+function modeCfg(mode) {
+  return MODE_JAM[mode] || MODE_JAM['12'];
+}
+
 function toMinutes(t) {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
@@ -23,15 +33,20 @@ function jamLemburPenuh(jam) {
   return 19 + 4 * (jam - 9);
 }
 
-// istirahat = jam istirahat setelah shift normal: 0 (mode 11 jam) atau 1 (mode 10 jam + 1 jam istirahat)
-function jamLemburHari(rec, istirahat) {
+// Hari biasa: jumlah jam lembur mengikuti mode (12 jam -> 3, 11 jam -> 2),
+// dihitung hanya bila pulang setelah shift normal + istirahat.
+// Hari Lembur: jam kehadiran dipotong istirahat dulu, lalu pakai kelipatan khusus.
+function jamLemburHari(rec, mode) {
   if (!rec || rec.libur || !rec.masuk || !rec.keluar) return 0;
   const menit = toMinutes(rec.keluar) - toMinutes(rec.masuk);
   if (menit <= 0) return 0;
-  if (rec.lembur) return jamLemburPenuh(Math.floor(menit / 60));
-  const batas = toMinutes(AKHIR_KERJA_NORMAL) + (istirahat || 0) * 60;
-  const otMenit = toMinutes(rec.keluar) - batas;
-  return jamLemburNormal(Math.floor(Math.max(0, otMenit) / 60));
+  const cfg = modeCfg(mode);
+  if (rec.lembur) {
+    const jamKerja = Math.floor(menit / 60) - cfg.istirahat;
+    return jamKerja > 0 ? jamLemburPenuh(jamKerja) : 0;
+  }
+  if (toMinutes(rec.keluar) <= toMinutes(AKHIR_KERJA_NORMAL) + cfg.istirahat * 60) return 0;
+  return jamLemburNormal(cfg.lembur);
 }
 
 // Validasi rekaman dari file import: hanya terima bentuk yang dikenal
@@ -65,22 +80,22 @@ function upahPerJam(gajiPokok) {
 }
 
 // Upah satu hari: hari kerja normal = 8 jam + lembur hari itu; hari Lembur = hitungan lemburnya saja
-function pendapatanHari(rec, gajiPokok, istirahat) {
+function pendapatanHari(rec, gajiPokok, mode) {
   if (!rec || rec.libur) return 0;
   const rate = upahPerJam(gajiPokok);
-  if (rec.lembur) return jamLemburHari(rec, istirahat) * rate;
+  if (rec.lembur) return jamLemburHari(rec, mode) * rate;
   if (!rec.masuk || !rec.keluar) return 0;
-  return (JAM_KERJA_SEHARI + jamLemburHari(rec, istirahat)) * rate;
+  return (JAM_KERJA_SEHARI + jamLemburHari(rec, mode)) * rate;
 }
 
-function ringkasanBulan(data, bulan, gajiPokok, istirahat) {
+function ringkasanBulan(data, bulan, gajiPokok, mode) {
   let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0;
   for (const [tgl, rec] of Object.entries(data)) {
     if (!tgl.startsWith(bulan)) continue;
     if (rec.libur) { hariLibur++; continue; }
-    if (rec.lembur) { hariLembur++; jam += jamLemburHari(rec, istirahat); continue; }
+    if (rec.lembur) { hariLembur++; jam += jamLemburHari(rec, mode); continue; }
     if (rec.masuk && rec.keluar) hariKerja++;
-    jam += jamLemburHari(rec, istirahat);
+    jam += jamLemburHari(rec, mode);
   }
   const rate = upahPerJam(gajiPokok);
   const gajiHarian = JAM_KERJA_SEHARI * rate * hariKerja;
@@ -95,10 +110,10 @@ function ringkasanBulan(data, bulan, gajiPokok, istirahat) {
 }
 
 // Akumulasi berurutan: upah hari itu + total berjalan sampai akhir bulan
-function akumulasiHarian(data, bulan, gajiPokok, istirahat) {
+function akumulasiHarian(data, bulan, gajiPokok, mode) {
   let total = 0;
   return Object.keys(data).filter(k => k.startsWith(bulan)).sort().map(k => {
-    const upah = pendapatanHari(data[k], gajiPokok, istirahat);
+    const upah = pendapatanHari(data[k], gajiPokok, mode);
     total += upah;
     return { tanggal: k, rec: data[k], upah, akumulasi: total };
   });
@@ -139,8 +154,8 @@ function pph21Setahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
 }
 
 // thr = THR/bonus yang dibayarkan di bulan itu (0 bila tidak ada)
-function hitungGaji(data, bulan, gajiPokok, ptkp, istirahat, thr) {
-  const s = ringkasanBulan(data, bulan, gajiPokok, istirahat);
+function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thr) {
+  const s = ringkasanBulan(data, bulan, gajiPokok, mode);
   const bpjsTk = gajiPokok * 0.03;
   const bpjsKes = gajiPokok * 0.01;
   const brutoSetahun = s.total * 12;
@@ -163,5 +178,5 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, istirahat, thr) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, MODE_JAM, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, hitungGaji };
 }
