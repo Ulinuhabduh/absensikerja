@@ -39,6 +39,7 @@ h1{font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--m
 .toggle.active.libur{background:var(--slate-bg);border-color:#94a3b8;color:#475569}
 .hint{font-size:.75rem;color:var(--muted);margin:10px 2px 0;line-height:1.45}
 .mini{background:none;border:0;color:var(--blue);font-size:.72rem;cursor:pointer;text-decoration:underline;padding:0 0 0 2px}
+.summary .row em{font-style:normal;color:var(--muted);font-size:.68rem}
 .reset{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);font-size:.8rem;text-decoration:underline;cursor:pointer}
 input{width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-size:1rem;margin-bottom:10px;font-family:inherit;background:#fff;color:var(--text)}
 input:focus{outline:2px solid var(--blue);outline-offset:-1px}
@@ -224,7 +225,7 @@ td.num,th.num{text-align:right}
       </div>
       <div class="row pot"><span>BPJS Ketenagakerjaan 3%</span><strong id="sumBpjsTk">-Rp0</strong></div>
       <div class="row pot"><span>BPJS Kesehatan 1%</span><strong id="sumBpjsKes">-Rp0</strong></div>
-      <div class="row pot"><span>PPh 21<button class="mini" id="btnPph">penjelasan</button><button class="mini" id="btnPphData">rincian perhitungan pph21</button></span><strong id="sumPph">-Rp0</strong></div>
+      <div class="row pot"><span>PPh 21 <em id="sumPphInfo"></em><button class="mini" id="btnPph">penjelasan</button><button class="mini" id="btnPphData">rincian perhitungan pph21</button></span><strong id="sumPph">-Rp0</strong></div>
       <div class="row pot" id="sumPphThrRow" hidden><span>PPh 21 atas THR</span><strong id="sumPphThr">-Rp0</strong></div>
       <p class="pph-note" id="sumPphNote" hidden></p>
       <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
@@ -381,7 +382,7 @@ function renderMonth() {
     tbody.appendChild(tr);
   }
 
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr[viewMonth] || 0);
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr);
   el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
   el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
   el('sumGajiHarian').textContent = rahasia(rupiah(g.gajiHarian));
@@ -393,10 +394,18 @@ function renderMonth() {
   el('sumBpjsTk').textContent = rahasia('-' + rupiah(g.bpjsTk));
   el('sumBpjsKes').textContent = rahasia('-' + rupiah(g.bpjsKes));
   el('sumPph').textContent = rahasia('-' + rupiah(g.pphTeratur));
+  el('sumPphInfo').textContent = g.metode === 'TER'
+    ? 'TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '% · Kategori ' + g.terKategori
+    : 'rekonsiliasi Desember';
   el('sumPphThrRow').hidden = !(g.pphThr > 0);
   el('sumPphThr').textContent = rahasia('-' + rupiah(g.pphThr));
   const note = el('sumPphNote');
-  if (g.pph > 0) {
+  if (g.metode === 'rekonsiliasi') {
+    note.hidden = false;
+    note.innerHTML = 'Rekonsiliasi Desember: PPh setahun ' + rahasia(rupiah(g.sudahPotong + g.pph)) +
+      ' &minus; sudah dipotong Jan&ndash;Nov (TER) ' + rahasia(rupiah(g.sudahPotong)) +
+      ' = ' + rahasia(rupiah(g.pph)) + '.';
+  } else if (g.pph > 0) {
     note.hidden = true;
   } else if (!gajiPokok) {
     note.hidden = false;
@@ -404,12 +413,13 @@ function renderMonth() {
   } else if (g.bruto === 0 && g.thr === 0) {
     note.hidden = false;
     note.innerHTML = 'PPh 21 Rp0 karena <b>belum ada absensi tercatat</b> di bulan ini.';
-  } else {
+  } else if (g.terRate === 0) {
     note.hidden = false;
-    note.innerHTML = 'PPh 21 Rp0: bruto disetahunkan ' + rahasia(rupiah(g.brutoTotalSetahun)) +
-      ' masih di bawah batas bebas pajak ' + rahasia(rupiah(g.ambangSetahun)) + '. ' +
-      'Perlu tambahan &#8776;' + rahasia(rupiah(g.kurangSetahun / 12)) + '/bulan (&#8776; ' +
-      rahasia(angka(Math.ceil(g.kurangSetahun / 12 / g.upahPerJam))) + ' jam lembur) supaya mulai kena PPh 21.';
+    note.innerHTML = 'PPh 21 Rp0 karena tarif TER Kategori ' + g.terKategori + ' untuk bruto ' +
+      rahasia(rupiah(g.bruto)) + ' adalah <b>0%</b> (batas bebas ' + rahasia(rupiah(g.terBatas0)) + '/bulan). ' +
+      'Perlu tambahan &#8776;' + rahasia(rupiah(g.terBatas0 - g.bruto + 1)) + ' supaya masuk lapisan berikutnya.';
+  } else {
+    note.hidden = true;
   }
   el('sumBersih').textContent = rahasia(rupiah(g.bersih));
   el('sumHari').textContent = g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur';
@@ -441,11 +451,14 @@ function renderPrint() {
       '<td class="c">' + (r && r.keluar ? esc(r.keluar) : '') + '</td>' +
       '<td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
   }
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr[viewMonth] || 0);
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr);
   const modeLabel = mode === '11'
     ? '11 jam (8 kerja + 1 istirahat + 2 lembur)'
     : '12 jam (8 kerja + 1 istirahat + 3 lembur)';
   const baris = (label, nilai, cls) => '<div class="p-row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' + nilai + '</b></div>';
+  const labelPph = 'PPh 21 ' + (g.metode === 'TER'
+    ? '(TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '% Kategori ' + g.terKategori + ')'
+    : '(rekonsiliasi Desember)');
   el('printArea').innerHTML =
     '<div class="p-title">ABSENSI HARIAN</div>' +
     '<div class="p-meta">' +
@@ -468,7 +481,7 @@ function renderPrint() {
       (g.thr > 0 ? baris('THR / Bonus', '+' + rupiah(g.thr)) : '') +
       baris('Potongan BPJS Ketenagakerjaan 3%', '-' + rupiah(g.bpjsTk)) +
       baris('Potongan BPJS Kesehatan 1%', '-' + rupiah(g.bpjsKes)) +
-      baris('PPh 21 (' + esc(ptkp) + ')', '-' + rupiah(g.pphTeratur)) +
+      baris(labelPph, '-' + rupiah(g.pphTeratur)) +
       (g.pphThr > 0 ? baris('PPh 21 atas THR', '-' + rupiah(g.pphThr)) : '') +
       baris('Gaji bersih', rupiah(g.bersih), 'total') +
       '<div class="p-note">' + g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur · Mode: ' + modeLabel + '</div>' +
@@ -543,6 +556,7 @@ function renderPph() {
       '</table>' +
       '<p>Tarifnya naik bertingkat mengikuti bruto bulanan. Pada Kategori A, tarifnya mulai 0% untuk bruto sampai Rp5.400.000, lalu naik bertahap hingga 34% untuk bruto di atas Rp1.400.000.000.</p>' +
       '<p>TER dipakai untuk Masa Pajak Januari&ndash;November. Pada Masa Pajak Desember, PPh 21 dihitung ulang memakai tarif berlapis (metode tahunan), lalu dikurangi PPh 21 yang sudah dipotong Januari&ndash;November. Dengan begitu jumlah setahun tetap sesuai tarif progresif.</p>' +
+      '<p>Aplikasi ini memakai mekanisme tersebut: Januari&ndash;November memakai tabel TER (Kategori A/B/C sesuai PTKP Anda), Desember memakai perhitungan tahunan dan selisihnya. Tabel lengkap 44/40/41 lapisan sudah disalin dari Lampiran PP 58/2023 ke dalam aplikasi.</p>' +
 
       '<h2>6. PTKP (PMK 101/2016)</h2>' +
       '<table>' + ptkpTabel + '</table>' +
@@ -577,26 +591,55 @@ function renderPph() {
 }
 
 function renderPphData() {
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr[viewMonth] || 0);
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr);
   const [y, m] = viewMonth.split('-').map(Number);
   const periode = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   const bpjsSetahun = g.bpjsTk * 12;
   const ptkpNilai = PTKP[ptkp] || 0;
-  const brutoTeraturSetahun = g.bruto * 12;
-  const biayaJabatan = Math.min(brutoTeraturSetahun * 0.05, 6000000);
-  const pkpTeratur = pkpSetahun(brutoTeraturSetahun, bpjsSetahun, ptkpNilai);
-  const pphTeraturSetahun = pph21Setahun(brutoTeraturSetahun, bpjsSetahun, ptkpNilai);
-  const pphTotalSetahun = g.thr > 0 ? pph21Setahun(brutoTeraturSetahun + g.thr, bpjsSetahun, ptkpNilai) : pphTeraturSetahun;
   const modeLabel = mode === '11' ? '11 jam (8 kerja + 1 istirahat + 2 lembur)' : '12 jam (8 kerja + 1 istirahat + 3 lembur)';
   const tr = (label, nilai, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + label + '</td><td class="r">' + nilai + '</td></tr>';
-  const lapisan = rincianLapisan(pkpTeratur).map(l =>
-    tr('Pajak ' + (l.tarif * 100) + '% &times; ' + rupiah(l.sampai - l.dari), rupiah(l.pajak))
-  ).join('');
-  let catatan = 'Angka ini estimasi memakai metode tahunan &divide; 12, bukan perhitungan resmi pemotongan pajak. Perusahaan memakai tabel TER bulanan (PP 58/2023), sehingga potongan tiap bulan bisa berbeda dan selisihnya diselesaikan pada perhitungan tahunan di Desember. Iuran BPJS Kesehatan tidak dikurangkan dari penghasilan.';
+  let blokPph, blokThr = '';
+  if (g.metode === 'TER') {
+    blokPph = '<h2>B. PPh 21 bulan ini (Tarif Efektif / TER)</h2>' +
+      '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
+        tr('Kategori TER (PTKP ' + esc(ptkp) + ')', 'Kategori ' + g.terKategori) +
+        tr('Penghasilan bruto bulan ini', rupiah(g.bruto)) +
+        tr('Tarif efektif (Lampiran PP 58/2023)', (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%') +
+        tr('PPh 21 = tarif &times; bruto', rupiah(g.pphTeratur), 'sub') +
+      '</table>';
+    if (g.thr > 0) {
+      const teraturSetahun = g.bruto * 12;
+      blokThr = '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
+        tr('PPh setahun atas (teratur + THR)', rupiah(pph21Setahun(teraturSetahun + g.thr, bpjsSetahun, ptkpNilai))) +
+        tr('PPh setahun atas teratur saja', '&minus;' + rupiah(pph21Setahun(teraturSetahun, bpjsSetahun, ptkpNilai))) +
+        tr('PPh 21 atas THR / bonus', rupiah(g.pphThr), 'sub') +
+        '</table>';
+    }
+  } else {
+    const brutoSetahun = g.brutoTotalSetahun;
+    const biayaJabatan = Math.min(brutoSetahun * 0.05, 6000000);
+    const pkp = pkpSetahun(brutoSetahun, bpjsSetahun, ptkpNilai);
+    const lapisan = rincianLapisan(pkp).map(l =>
+      tr('Pajak ' + (l.tarif * 100) + '% &times; ' + rupiah(l.sampai - l.dari), rupiah(l.pajak))).join('');
+    blokPph = '<h2>B. Rekonsiliasi PPh 21 Desember</h2>' +
+      '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
+        tr('Bruto setahun (Januari&ndash;Desember + THR)', rupiah(brutoSetahun)) +
+        tr('Biaya jabatan 5% (maks Rp6.000.000)', '&minus;' + rupiah(biayaJabatan)) +
+        tr('BPJS Ketenagakerjaan setahun (3% &times; pokok)', '&minus;' + rupiah(bpjsSetahun)) +
+        tr('PTKP ' + esc(ptkp), '&minus;' + rupiah(ptkpNilai)) +
+        tr('PKP', rupiah(pkp), 'sub') +
+        (lapisan || '') +
+        tr('PPh 21 setahun', rupiah(g.sudahPotong + g.pph), 'sub') +
+        tr('Sudah dipotong Januari&ndash;November (TER)', '&minus;' + rupiah(g.sudahPotong)) +
+        tr('PPh 21 Desember', rupiah(g.pph), 'sub') +
+      '</table>';
+  }
+  let catatan = 'Potongan Januari&ndash;November memakai Tarif Efektif Rata-rata (TER) dari Lampiran PP 58/2023; Desember dihitung ulang setahun dengan tarif progresif Pasal 17, lalu selisihnya diselesaikan di bulan itu. Angka ini estimasi, bukan perhitungan resmi pemotongan pajak. Iuran BPJS Kesehatan tidak dikurangkan dari penghasilan.';
   if (g.pph === 0) {
     if (!gajiPokok) catatan += ' PPh 21 Rp0 karena gaji pokok (acuan) belum diisi.';
     else if (g.bruto === 0 && g.thr === 0) catatan += ' PPh 21 Rp0 karena belum ada absensi tercatat di bulan ini.';
-    else catatan += ' PPh 21 Rp0 karena bruto disetahunkan ' + rupiah(g.brutoTotalSetahun) + ' masih di bawah batas bebas pajak ' + rupiah(g.ambangSetahun) + ' (perlu tambahan &#8776;' + rupiah(g.kurangSetahun / 12) + '/bulan atau &#8776; ' + angka(Math.ceil(g.kurangSetahun / 12 / (g.upahPerJam || 1))) + ' jam lembur).';
+    else if (g.metode === 'TER' && g.terRate === 0) catatan += ' PPh 21 Rp0 karena tarif TER Kategori ' + g.terKategori + ' untuk bruto ' + rupiah(g.bruto) + ' adalah 0% (batas bebas ' + rupiah(g.terBatas0) + '/bulan).';
+    else catatan += ' PPh 21 Rp0 karena bruto setahun ' + rupiah(g.brutoTotalSetahun) + ' masih di bawah batas bebas pajak ' + rupiah(g.ambangSetahun) + '.';
   }
   el('printArea').innerHTML =
     '<div class="pph">' +
@@ -614,34 +657,17 @@ function renderPphData() {
         tr('Bruto bulan ini', rupiah(g.bruto + g.thr), 'sub') +
       '</table>' +
 
-      '<h2>B. PPh 21 atas penghasilan teratur</h2>' +
-      '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
-        tr('Bruto teratur disetahunkan (&times; 12)', rupiah(brutoTeraturSetahun)) +
-        tr('Biaya jabatan 5% (maks Rp6.000.000)', '&minus;' + rupiah(biayaJabatan)) +
-        tr('BPJS Ketenagakerjaan setahun (3% &times; pokok)', '&minus;' + rupiah(bpjsSetahun)) +
-        tr('PTKP ' + esc(ptkp), '&minus;' + rupiah(ptkpNilai)) +
-        tr('PKP', rupiah(pkpTeratur), 'sub') +
-        (lapisan || tr('Pajak', rupiah(0))) +
-        tr('PPh 21 setahun', rupiah(pphTeraturSetahun), 'sub') +
-        tr('PPh 21 per bulan', rupiah(pphTeraturSetahun / 12), 'sub') +
-      '</table>' +
+      blokPph +
+      (blokThr ? '<h2>C. PPh 21 atas THR / bonus</h2>' + blokThr : '') +
 
-      (g.thr > 0 ?
-        '<h2>C. PPh 21 atas THR / bonus</h2>' +
-        '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
-          tr('PPh setahun atas (teratur + THR)', rupiah(pphTotalSetahun)) +
-          tr('PPh setahun atas teratur saja', '&minus;' + rupiah(pphTeraturSetahun)) +
-          tr('PPh 21 atas THR / bonus', rupiah(g.pphThr), 'sub') +
-        '</table>' : '') +
-
-      '<h2>' + (g.thr > 0 ? 'D' : 'C') + '. Total PPh 21 bulan ini</h2>' +
+      '<h2>' + (blokThr ? 'D' : 'C') + '. Total PPh 21 bulan ini</h2>' +
       '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
-        tr('PPh 21 atas penghasilan teratur', rupiah(pphTeraturSetahun / 12)) +
-        (g.thr > 0 ? tr('PPh 21 atas THR / bonus', rupiah(g.pphThr)) : '') +
+        (g.metode === 'TER' ? tr('PPh 21 atas penghasilan teratur', rupiah(g.pphTeratur)) : '') +
+        (g.metode === 'TER' && g.pphThr > 0 ? tr('PPh 21 atas THR / bonus', rupiah(g.pphThr)) : '') +
         tr('Total PPh 21 bulan ini', rupiah(g.pph), 'sub') +
       '</table>' +
 
-      '<h2>' + (g.thr > 0 ? 'E' : 'D') + '. Catatan</h2>' +
+      '<h2>' + (blokThr ? 'E' : 'D') + '. Catatan</h2>' +
       '<p class="kecil">' + catatan + '</p>' +
     '</div>';
 }

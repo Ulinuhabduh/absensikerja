@@ -130,6 +130,56 @@ const PTKP = {
   'K/3': 72000000,
 };
 
+// Tarif Efektif Rata-rata bulanan (Lampiran PP 58/2023), nilai dalam persen.
+// Pasangan [batas atas bruto bulanan, tarif]; baris terakhir berlaku untuk kelebihannya.
+const TER = {
+  A: [
+    [5400000,0], [5650000,0.25], [5950000,0.5], [6300000,0.75], [6750000,1], [7500000,1.25],
+    [8550000,1.5], [9650000,1.75], [10050000,2], [10350000,2.25], [10700000,2.5], [11050000,3],
+    [11600000,3.5], [12500000,4], [13750000,5], [15100000,6], [16950000,7], [19750000,8],
+    [24150000,9], [26450000,10], [28000000,11], [30050000,12], [32400000,13], [35400000,14],
+    [39100000,15], [43850000,16], [47800000,17], [51400000,18], [56300000,19], [62200000,20],
+    [68600000,21], [77500000,22], [89000000,23], [103000000,24], [125000000,25], [157000000,26],
+    [206000000,27], [337000000,28], [454000000,29], [550000000,30], [695000000,31], [910000000,32],
+    [1400000000,33], [Infinity,34],
+  ],
+  B: [
+    [6200000,0], [6500000,0.25], [6850000,0.5], [7300000,0.75], [9200000,1], [10750000,1.5],
+    [11250000,2], [11600000,2.5], [12600000,3], [13600000,4], [14950000,5], [16400000,6],
+    [18450000,7], [21850000,8], [26000000,9], [27700000,10], [29350000,11], [31450000,12],
+    [33950000,13], [37100000,14], [41100000,15], [45800000,16], [49500000,17], [53800000,18],
+    [58500000,19], [64000000,20], [71000000,21], [80000000,22], [93000000,23], [109000000,24],
+    [129000000,25], [163000000,26], [211000000,27], [374000000,28], [459000000,29], [555000000,30],
+    [704000000,31], [957000000,32], [1405000000,33], [Infinity,34],
+  ],
+  C: [
+    [6600000,0], [6950000,0.25], [7350000,0.5], [7800000,0.75], [8850000,1], [9800000,1.25],
+    [10950000,1.5], [11200000,1.75], [12050000,2], [12950000,3], [14150000,4], [15550000,5],
+    [17050000,6], [19500000,7], [22700000,8], [26600000,9], [28100000,10], [30100000,11],
+    [32600000,12], [35400000,13], [38900000,14], [43000000,15], [47400000,16], [51200000,17],
+    [55800000,18], [60400000,19], [66700000,20], [74500000,21], [83200000,22], [95600000,23],
+    [110000000,24], [134000000,25], [169000000,26], [221000000,27], [390000000,28], [463000000,29],
+    [561000000,30], [709000000,31], [965000000,32], [1419000000,33], [Infinity,34],
+  ],
+};
+
+// Kategori TER sesuai status PTKP
+function kategoriTer(ptkp) {
+  if (ptkp === 'K/3') return 'C';
+  if (['TK/2', 'TK/3', 'K/1', 'K/2'].includes(ptkp)) return 'B';
+  return 'A';
+}
+
+// Tarif TER (desimal) untuk bruto bulanan; batas0 = batas lapisan 0%
+function terRate(brutoBulanan, kategori) {
+  const tabel = TER[kategori] || TER.A;
+  for (const [batas, tarif] of tabel) {
+    if (brutoBulanan <= batas) return { tarif: tarif / 100, batas0: tabel[0][0] };
+  }
+  const akhir = tabel[tabel.length - 1];
+  return { tarif: akhir[1] / 100, batas0: tabel[0][0] };
+}
+
 const LAPISAN_PPH = [
   [60000000, 0.05],
   [250000000, 0.15],
@@ -156,46 +206,94 @@ function rincianLapisan(pkp) {
   return out;
 }
 
-// Estimasi PPh 21 setahun: bruto - biaya jabatan 5% (maks 6jt) - JHT/JP - PTKP, tarif progresif
+// PPh 21 setahun dengan tarif progresif: bruto - biaya jabatan - JHT/JP - PTKP
 function pph21Setahun(brutoSetahun, potonganBpjsTkSetahun, ptkp) {
   return rincianLapisan(pkpSetahun(brutoSetahun, potonganBpjsTkSetahun, ptkp)).reduce((t, l) => t + l.pajak, 0);
 }
 
-// Ambang bruto setahun agar PKP > 0 (batas mulai kena PPh 21)
+// Ambang bruto setahun agar PKP > 0 (batas mulai kena PPh 21 tahunan)
 function ambangPajakSetahun(bpjsSetahun, ptkp) {
   const a = (bpjsSetahun + ptkp) / 0.95;
   return a <= 120000000 ? a : 6000000 + bpjsSetahun + ptkp;
 }
 
-// thr = THR/bonus yang dibayarkan di bulan itu (0 bila tidak ada)
-function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thr) {
+// PPh atas THR/bonus: selisih PPh setahun (teratur + THR) dengan PPh setahun teratur saja
+function pphAtasThr(brutoBulanan, nilaiThr, gajiPokok, ptkp) {
+  const bpjsSetahun = gajiPokok * 0.03 * 12;
+  const teraturSetahun = brutoBulanan * 12;
+  return pph21Setahun(teraturSetahun + nilaiThr, bpjsSetahun, PTKP[ptkp] || 0)
+    - pph21Setahun(teraturSetahun, bpjsSetahun, PTKP[ptkp] || 0);
+}
+
+function brutoSetahunAktual(data, tahun, gajiPokok, mode, thrMap) {
+  const map = thrMap || {};
+  let total = 0;
+  for (let b = 1; b <= 12; b++) {
+    const key = tahun + '-' + String(b).padStart(2, '0');
+    total += ringkasanBulan(data, key, gajiPokok, mode).total;
+    if (map[key] > 0) total += map[key];
+  }
+  return total;
+}
+
+// PPh yang sudah dipotong Januari–November (TER + PPh atas THR)
+function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap) {
+  const map = thrMap || {};
+  const kat = kategoriTer(ptkp);
+  let total = 0;
+  for (let b = 1; b <= 11; b++) {
+    const key = tahun + '-' + String(b).padStart(2, '0');
+    const bruto = ringkasanBulan(data, key, gajiPokok, mode).total;
+    total += terRate(bruto, kat).tarif * bruto;
+    if (map[key] > 0) total += pphAtasThr(bruto, map[key], gajiPokok, ptkp);
+  }
+  return total;
+}
+
+// thrMap = { 'YYYY-MM': nominal } untuk semua THR/bonus
+function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap) {
+  const map = thrMap || {};
   const s = ringkasanBulan(data, bulan, gajiPokok, mode);
   const bpjsTk = gajiPokok * 0.03;
   const bpjsKes = gajiPokok * 0.01;
-  const brutoSetahun = s.total * 12;
-  const pphTeraturSetahun = pph21Setahun(brutoSetahun, bpjsTk * 12, PTKP[ptkp] || 0);
-  const nilaiThr = thr > 0 ? thr : 0;
-  // PPh atas THR/bonus = selisih PPh setahun (teratur + THR) dengan PPh setahun teratur saja
-  const pphThr = nilaiThr > 0
-    ? pph21Setahun(brutoSetahun + nilaiThr, bpjsTk * 12, PTKP[ptkp] || 0) - pphTeraturSetahun
-    : 0;
-  const pph = pphTeraturSetahun / 12 + pphThr;
-  const totalSetahun = brutoSetahun + nilaiThr;
-  const ambangSetahun = ambangPajakSetahun(bpjsTk * 12, PTKP[ptkp] || 0);
+  const nilaiThr = map[bulan] > 0 ? map[bulan] : 0;
+  const ptkpNilai = PTKP[ptkp] || 0;
+  const kat = kategoriTer(ptkp);
+  const desember = bulan.slice(5) === '12';
+  let pphTeratur, pphThr, pph, ter = null, brutoSetahun, sudahPotong = 0;
+  if (desember) {
+    // Masa pajak terakhir: hitung setahun penuh (progresif), kurangi yang sudah dipotong Jan–Nov
+    brutoSetahun = brutoSetahunAktual(data, bulan.slice(0, 4), gajiPokok, mode, map);
+    sudahPotong = pphTerpotongJanNov(data, bulan.slice(0, 4), gajiPokok, ptkp, mode, map);
+    pphTeratur = pph21Setahun(brutoSetahun, bpjsTk * 12, ptkpNilai) - sudahPotong;
+    pphThr = 0;
+    pph = pphTeratur;
+  } else {
+    ter = terRate(s.total, kat);
+    pphTeratur = ter.tarif * s.total;
+    pphThr = nilaiThr > 0 ? pphAtasThr(s.total, nilaiThr, gajiPokok, ptkp) : 0;
+    pph = pphTeratur + pphThr;
+    brutoSetahun = s.total * 12 + nilaiThr;
+  }
+  const ambangSetahun = ambangPajakSetahun(bpjsTk * 12, ptkpNilai);
   return Object.assign({}, s, {
     bruto: s.total,
     thr: nilaiThr,
     bpjsTk, bpjsKes,
-    pphTeratur: pphTeraturSetahun / 12,
-    pphThr, pph,
+    pphTeratur, pphThr, pph,
     potongan: bpjsTk + bpjsKes + pph,
     bersih: s.total + nilaiThr - bpjsTk - bpjsKes - pph,
-    brutoTotalSetahun: totalSetahun,
+    brutoTotalSetahun: brutoSetahun,
     ambangSetahun,
-    kurangSetahun: Math.max(0, ambangSetahun - totalSetahun),
+    kurangSetahun: Math.max(0, ambangSetahun - brutoSetahun),
+    terKategori: kat,
+    terRate: ter ? ter.tarif : null,
+    terBatas0: ter ? ter.batas0 : null,
+    metode: desember ? 'rekonsiliasi' : 'TER',
+    sudahPotong,
   });
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, MODE_JAM, PTKP, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, MODE_JAM, PTKP, TER, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, kategoriTer, terRate, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, pphAtasThr, brutoSetahunAktual, pphTerpotongJanNov, hitungGaji };
 }

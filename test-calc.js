@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, ambangPajakSetahun, hitungGaji } = require('./calc.js');
+const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, ambangPajakSetahun, hitungGaji, TER, kategoriTer, terRate, brutoSetahunAktual } = require('./calc.js');
 
 const GAJI_POKOK = 4245927;
 const rate = GAJI_POKOK / 173;
@@ -127,8 +127,8 @@ assert.strictEqual(g.ambangSetahun, ambangPajakSetahun(bpjsSetahun, 54000000));
 // THR/bonus: PPh-nya selisih metode tahunan, dipotong penuh di bulan itu
 const dataBesar = {};
 for (let i = 1; i <= 22; i++) dataBesar['2026-10-' + String(i).padStart(2, '0')] = { masuk: '06:00', keluar: '17:00' };
-const gB = hitungGaji(dataBesar, '2026-10', GAJI_POKOK, 'TK/0', '12', 0);
-const gT = hitungGaji(dataBesar, '2026-10', GAJI_POKOK, 'TK/0', '12', GAJI_POKOK);
+const gB = hitungGaji(dataBesar, '2026-10', GAJI_POKOK, 'TK/0', '12', {});
+const gT = hitungGaji(dataBesar, '2026-10', GAJI_POKOK, 'TK/0', '12', { '2026-10': GAJI_POKOK });
 assert.strictEqual(gB.pphThr, 0);
 assert.ok(gT.pphThr > 0);
 assert.ok(Math.abs(gT.pph - (gB.pph + gT.pphThr)) < 1e-9);
@@ -139,5 +139,53 @@ assert.ok(Math.abs(gT.pphThr - (pph21Setahun(gB.bruto * 12 + GAJI_POKOK, GAJI_PO
 // Sudah kena pajak -> tidak ada kekurangan
 assert.ok(gB.pph > 0);
 assert.strictEqual(gB.kurangSetahun, 0);
+
+// --- Tabel TER (Lampiran PP 58/2023) ---
+assert.strictEqual(TER.A.length, 44);
+assert.strictEqual(TER.B.length, 40);
+assert.strictEqual(TER.C.length, 41);
+for (const k of ['A', 'B', 'C']) {
+  assert.strictEqual(TER[k][0][1], 0, k + ' mulai dari 0%');
+  assert.strictEqual(TER[k][TER[k].length - 1][1], 34, k + ' puncak 34%');
+  assert.strictEqual(TER[k][TER[k].length - 1][0], Infinity, k + ' baris terakhir tanpa batas');
+  for (let i = 1; i < TER[k].length; i++) {
+    assert.ok(TER[k][i][0] > TER[k][i - 1][0], k + ' batas naik di baris ' + i);
+    assert.ok(TER[k][i][1] > TER[k][i - 1][1], k + ' tarif naik di baris ' + i);
+  }
+}
+// Kategori sesuai PTKP
+assert.strictEqual(kategoriTer('TK/0'), 'A');
+assert.strictEqual(kategoriTer('K/0'), 'A');
+assert.strictEqual(kategoriTer('TK/2'), 'B');
+assert.strictEqual(kategoriTer('K/2'), 'B');
+assert.strictEqual(kategoriTer('K/3'), 'C');
+// Tarif per lapisan
+assert.strictEqual(terRate(5400000, 'A').tarif, 0);
+assert.strictEqual(terRate(6000000, 'A').tarif, 0.0075);
+assert.strictEqual(terRate(50000000, 'A').tarif, 0.18);
+assert.strictEqual(terRate(6200000, 'B').tarif, 0);
+assert.strictEqual(terRate(9200000, 'B').tarif, 0.01);
+assert.strictEqual(terRate(2000000000, 'A').tarif, 0.34);
+
+// --- Mekanisme TER + rekonsiliasi Desember ---
+const setahun = {};
+for (let b = 1; b <= 12; b++) {
+  for (let i = 1; i <= 20; i++) setahun['2026-' + String(b).padStart(2, '0') + '-' + String(i).padStart(2, '0')] = { masuk: '06:00', keluar: '17:00' };
+}
+const gJan = hitungGaji(setahun, '2026-01', GAJI_POKOK, 'TK/0', '12', {});
+assert.strictEqual(gJan.metode, 'TER');
+assert.strictEqual(gJan.terKategori, 'A');
+assert.ok(Math.abs(gJan.pph - terRate(gJan.bruto, 'A').tarif * gJan.bruto) < 1e-9);
+const gDes = hitungGaji(setahun, '2026-12', GAJI_POKOK, 'TK/0', '12', {});
+assert.strictEqual(gDes.metode, 'rekonsiliasi');
+// Total setahun (TER Jan-Nov + rekonsiliasi Des) harus sama dengan PPh setahun progresif
+let totalPph = 0, totalBruto = 0;
+for (let b = 1; b <= 12; b++) {
+  const gb = hitungGaji(setahun, '2026-' + String(b).padStart(2, '0'), GAJI_POKOK, 'TK/0', '12', {});
+  totalPph += gb.pph;
+  totalBruto += gb.bruto;
+}
+assert.ok(Math.abs(totalBruto - brutoSetahunAktual(setahun, '2026', GAJI_POKOK, '12', {})) < 1e-6);
+assert.ok(Math.abs(totalPph - pph21Setahun(totalBruto, GAJI_POKOK * 0.03 * 12, 54000000)) < 1e-6);
 
 console.log('OK - semua perhitungan benar');
