@@ -266,6 +266,8 @@ td.num,th.num{text-align:right}
     <input type="file" id="importFile" accept="application/json,.json" hidden>
     <p class="hint">Data tersimpan di browser ini. Unduh file JSON untuk backup / pindah perangkat. Import akan menggabungkan data &mdash; tanggal yang sama ditimpa isi file.</p>
     <p class="hint" id="backupMsg"></p>
+    <button class="btn red" id="btnUserBaru" style="width:100%;margin-top:14px">Buat User Baru (Kosongkan Data)</button>
+    <p class="hint">Menghapus semua absensi, gaji pokok, THR, dan data karyawan di browser ini supaya bisa diperagakan dari nol. Unduh backup JSON dulu kalau datanya masih dipakai.</p>
   </section>
 </main>
 
@@ -841,6 +843,33 @@ el('btnPph').onclick = () => { renderPph(); window.print(); renderPrint(); };
 el('btnPphData').onclick = () => { renderPphData(); window.print(); renderPrint(); };
 
 el('btnExport').onclick = exportData;
+
+el('btnUserBaru').onclick = () => {
+  if (!confirm('Hapus SEMUA data di browser ini dan mulai dari kosong?\n\nAbsensi, gaji pokok, THR, dan data karyawan akan hilang. Unduh backup JSON dulu kalau perlu.')) return;
+  [KEY, KEY_GAJI, KEY_PTKP, KEY_HIDE, KEY_KARYAWAN, KEY_MODE, KEY_THR].forEach(k => localStorage.removeItem(k));
+  data = {};
+  gajiPokok = 0;
+  ptkp = 'TK/0';
+  thr = {};
+  karyawan = { nama: '', noid: '', dept: '', kerja: '' };
+  mode = '12';
+  tersembunyi = false;
+  viewMonth = todayKey().slice(0, 7);
+  el('selPtkp').value = ptkp;
+  document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value === mode; });
+  el('gajiCard').hidden = false;
+  el('gajiInput').value = '';
+  el('gajiMsg').textContent = '';
+  el('manualForm').hidden = true;
+  el('btnManual').hidden = false;
+  el('thrBulan').value = '';
+  el('thrNominal').value = '';
+  el('thrMsg').textContent = '';
+  loadKaryawan();
+  syncHideButton();
+  render();
+  el('backupMsg').textContent = 'Data dikosongkan. Siap dipakai user baru.';
+};
 
 el('btnImport').onclick = () => el('importFile').click();
 el('importFile').onchange = async () => {
