@@ -218,8 +218,8 @@ td.num,th.num{text-align:right}
       <div class="row"><span>Uang lembur (<span id="sumJam">0 jam</span>)</span><strong id="sumUang">Rp0</strong></div>
       <div class="row pot"><span>Potongan absensi / alfa</span><strong id="sumPot">-Rp0</strong></div>
       <div class="manual-grid">
-        <label class="full">Potongan bulan ini, mis. alfa/izin tanpa ket (Rp)<input type="text" id="potInput" inputmode="numeric" placeholder="0"></label>
-        <label class="full">Selisih / koreksi bulan lalu (Rp, negatif bila pengurang)<input type="text" id="selInput" inputmode="numeric" placeholder="0"></label>
+        <label class="full">Potongan absensi / alfa, mis. alfa/izin tanpa ket (Rp, sekali isi berlaku semua bulan)<input type="text" id="potInput" inputmode="numeric" placeholder="0"></label>
+        <label class="full">Selisih / koreksi bulan ini (Rp, negatif bila pengurang)<input type="text" id="selInput" inputmode="numeric" placeholder="0"></label>
       </div>
       <p class="hint" id="sumLiburInfo"></p>
       <div class="row"><span>Gaji kotor (pokok - potongan)</span><strong id="sumKotor">Rp0</strong></div>
@@ -323,8 +323,13 @@ let mode = localStorage.getItem(KEY_MODE) || '12';
 if (mode !== '11' && mode !== '12') mode = mode === '1' ? '11' : '12';
 let thr = {};
 try { thr = JSON.parse(localStorage.getItem(KEY_THR)) || {}; } catch (e) { thr = {}; }
-let pot = {};
-try { pot = JSON.parse(localStorage.getItem(KEY_POT)) || {}; } catch (e) { pot = {}; }
+let pot = 0;
+try {
+  const v = JSON.parse(localStorage.getItem(KEY_POT));
+  pot = (v !== null && typeof v === 'object' && !Array.isArray(v))
+    ? Number(Object.values(v).pop()) || 0
+    : Number(v) || 0;
+} catch (e) { pot = 0; }
 let sel = {};
 try { sel = JSON.parse(localStorage.getItem(KEY_SEL)) || {}; } catch (e) { sel = {}; }
 const adjMap = () => ({ pot, sel });
@@ -436,7 +441,7 @@ function renderMonth() {
   el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
   el('sumUang').textContent = rahasia(rupiah(g.uangLembur));
   el('sumPot').textContent = rahasia('-' + rupiah(g.potonganAbsensi));
-  if (document.activeElement !== el('potInput')) el('potInput').value = g.potonganAbsensi ? formatRibuan(String(g.potonganAbsensi)) : '';
+  if (document.activeElement !== el('potInput')) el('potInput').value = pot ? formatRibuan(String(pot)) : '';
   if (document.activeElement !== el('selInput')) el('selInput').value = g.selisih ? formatRibuan(String(g.selisih)) : '';
   el('sumLiburInfo').textContent = g.hariLibur
     ? g.hariLibur + ' hari libur (' + g.hariAlfa + ' alfa, ' + g.hariIzin + ' izin). Isi potongan bila ada alfa/izin tanpa keterangan jelas.'
@@ -923,9 +928,15 @@ el('btnUbahGaji').onclick = () => {
 
 function simpanAdj(inputId, store, key) {
   const raw = el(inputId).value;
-  const neg = inputId === 'selInput' && /-/.test(raw);
+  if (inputId === 'potInput') {
+    pot = Number(String(raw).replace(/\D/g, '')) || 0;
+    localStorage.setItem(key, JSON.stringify(pot));
+    render();
+    return;
+  }
+  const neg = /-/.test(raw);
   const val = Number(String(raw).replace(/\D/g, '')) || 0;
-  const signed = inputId === 'selInput' && neg ? -val : val;
+  const signed = neg ? -val : val;
   if (signed) store[viewMonth] = signed; else delete store[viewMonth];
   localStorage.setItem(key, JSON.stringify(store));
   render();
@@ -992,7 +1003,7 @@ el('btnUserBaru').onclick = () => {
   gajiPokok = 0;
   ptkp = 'TK/0';
   thr = {};
-  pot = {};
+  pot = 0;
   sel = {};
   karyawan = { nama: '', noid: '', dept: '', kerja: '' };
   mode = '12';
@@ -1045,13 +1056,22 @@ el('importFile').onchange = async () => {
       }
       localStorage.setItem(KEY_THR, JSON.stringify(thr));
     }
-    for (const [src, store, key] of [[parsed.potongan || parsed.pot, pot, KEY_POT], [parsed.selisih || parsed.sel, sel, KEY_SEL]]) {
+    for (const [src, store, key] of [[parsed.selisih || parsed.sel, sel, KEY_SEL]]) {
       if (src && typeof src === 'object') {
         for (const k of Object.keys(store)) delete store[k];
         for (const [k, v] of Object.entries(src)) {
           if (/^\d{4}-\d{2}$/.test(k) && Number(v) !== 0) store[k] = Number(v);
         }
         localStorage.setItem(key, JSON.stringify(store));
+      }
+    }
+    {
+      const srcPot = parsed.potongan !== undefined ? parsed.potongan : parsed.pot;
+      if (srcPot !== undefined && srcPot !== null) {
+        pot = (typeof srcPot === 'object' && !Array.isArray(srcPot))
+          ? Number(Object.values(srcPot).pop()) || 0
+          : Number(srcPot) || 0;
+        localStorage.setItem(KEY_POT, JSON.stringify(pot));
       }
     }
     if (parsed && parsed.karyawan && typeof parsed.karyawan === 'object') {

@@ -230,13 +230,18 @@ function ambangPajakSetahun(bpjsSetahun, ptkp) {
   return a <= 120000000 ? a : 6000000 + bpjsSetahun + ptkp;
 }
 
-// Penyesuaian per bulan: potongan absensi/alfa dan selisih/koreksi (bisa negatif).
-// Bentuk: { pot: { 'YYYY-MM': nominal }, sel: { 'YYYY-MM': nominal } }
+// Penyesuaian: potongan absensi/alfa sekali isi (angka, berlaku semua bulan)
+// atau peta per bulan; selisih/koreksi selalu peta per bulan (bisa negatif).
+// Bentuk: { pot: 50000 | { 'YYYY-MM': nominal }, sel: { 'YYYY-MM': nominal } }
 function adjBaca(adjMap, bulan) {
   const m = (adjMap && typeof adjMap === 'object') ? adjMap : {};
-  const pot = m.pot || m.potongan || {};
-  const sel = m.sel || m.selisih || {};
-  return { pot: Number(pot[bulan]) || 0, sel: Number(sel[bulan]) || 0 };
+  const potRaw = m.pot !== undefined ? m.pot : m.potongan;
+  const pot = (potRaw !== null && typeof potRaw === 'object' && !Array.isArray(potRaw))
+    ? Number(potRaw[bulan]) || 0
+    : Number(potRaw) || 0;
+  const selRaw = m.sel !== undefined ? m.sel : m.selisih;
+  const selMap = (selRaw !== null && typeof selRaw === 'object' && !Array.isArray(selRaw)) ? selRaw : {};
+  return { pot, sel: Number(selMap[bulan]) || 0 };
 }
 
 // PPh atas THR/bonus: selisih PPh setahun (rutin disetahunkan + selisih + THR)

@@ -138,6 +138,12 @@ assert.strictEqual(gAdj.selisih, -50000);
 assert.ok(Math.abs(gAdj.rutin - (g.rutin - 200000)) < 1e-9);
 assert.ok(Math.abs(gAdj.bruto - (g.rutin - 250000)) < 1e-9);
 assert.ok(Math.abs(gAdj.bersih - (gAdj.bruto - gAdj.bpjsTk - gAdj.bpjsKes - gAdj.pph)) < 1e-9);
+// Potongan sekali isi (angka) berlaku untuk bulan mana pun
+const gFix = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '12', {}, { pot: 150000 });
+assert.strictEqual(gFix.potonganAbsensi, 150000);
+assert.ok(Math.abs(gFix.rutin - (g.rutin - 150000)) < 1e-9);
+const gFixNov = hitungGaji(data, '2026-10', GAJI_POKOK, 'TK/0', '12', {}, { pot: 150000 });
+assert.strictEqual(gFixNov.potonganAbsensi, 150000);
 
 // THR/bonus: PPh-nya selisih metode tahunan, dipotong penuh di bulan itu
 const dataBesar = {};
