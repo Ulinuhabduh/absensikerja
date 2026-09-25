@@ -51,17 +51,18 @@ assert.strictEqual(keterangan({ libur: true }), 'Libur');
 assert.strictEqual(keterangan({ libur: true, ket: 'izin' }), 'Izin');
 assert.strictEqual(keterangan({ libur: true, ket: 'alfa' }), 'Alfa');
 
-// Upah per hari: 8 jam x upah/jam + lembur hari itu
+// Upah lembur per hari (hanya bagian lembur; pokok bersifat bulanan tetap)
 assert.strictEqual(upahPerJam(GAJI_POKOK), rate);
-assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00' }, GAJI_POKOK, '12') - 13.5 * rate) < 1e-9);
-assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00' }, GAJI_POKOK, '11') - 11.5 * rate) < 1e-9);
-assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '14:00' }, GAJI_POKOK, '12') - 8 * rate) < 1e-9);
+assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00' }, GAJI_POKOK, '12') - 5.5 * rate) < 1e-9);
+assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00' }, GAJI_POKOK, '11') - 3.5 * rate) < 1e-9);
+assert.strictEqual(pendapatanHari({ masuk: '06:00', keluar: '14:00' }, GAJI_POKOK, '12'), 0);
 assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00', lembur: true }, GAJI_POKOK, '12') - 23 * rate) < 1e-9);
 assert.strictEqual(pendapatanHari({ libur: true }, GAJI_POKOK, '12'), 0);
 assert.strictEqual(pendapatanHari({ masuk: '06:00' }, GAJI_POKOK, '12'), 0);
 assert.strictEqual(pendapatanHari({}, GAJI_POKOK, '12'), 0);
 
-// Ringkasan bulan: pokok ikut hari yang tercatat, bukan dibayar penuh
+// Ringkasan bulan: pokok dibayar penuh (bulanan tetap), lembur dijumlah terpisah.
+// gajiHarian hanya info pro-rata; total = gaji kotor + uang lembur.
 const data = {
   '2026-09-01': { masuk: '06:00', keluar: '17:00' },
   '2026-09-02': { masuk: '06:00', keluar: '17:00', lembur: true },
@@ -75,25 +76,31 @@ assert.strictEqual(s.hariLembur, 1);
 assert.strictEqual(s.hariLibur, 1);
 assert.ok(Math.abs(s.gajiHarian - 8 * rate) < 1e-9);
 assert.ok(Math.abs(s.uangLembur - rate * 28.5) < 1e-9);
-assert.ok(Math.abs(s.total - (s.gajiHarian + s.uangLembur)) < 1e-9);
+assert.strictEqual(s.gajiKotor, GAJI_POKOK);
+assert.ok(Math.abs(s.total - (GAJI_POKOK + s.uangLembur)) < 1e-9);
+// Potongan absensi mengurangi gaji kotor dan total
+const sPot = ringkasanBulan(data, '2026-09', GAJI_POKOK, '12', 100000);
+assert.strictEqual(sPot.potonganAbsensi, 100000);
+assert.strictEqual(sPot.gajiKotor, GAJI_POKOK - 100000);
+assert.ok(Math.abs(sPot.total - (s.total - 100000)) < 1e-9);
 // Sebulan kerja penuh (21,625 hari) = gaji pokok
 assert.ok(Math.abs(8 * rate * (173 / 8) - GAJI_POKOK) < 1e-9);
 
-// Mode 11 jam: hari biasa jadi 3,5, total bulan 26,5
+// Mode 11 jam: hari biasa jadi 3,5, total bulan = pokok + 26,5 jam
 const s11 = ringkasanBulan(data, '2026-09', GAJI_POKOK, '11');
 assert.strictEqual(s11.jam, 26.5);
-assert.ok(Math.abs(s11.total - (8 * rate + 26.5 * rate)) < 1e-9);
+assert.ok(Math.abs(s11.total - (GAJI_POKOK + 26.5 * rate)) < 1e-9);
 assert.ok(s11.total < s.total);
 
-// Akumulasi harian: urut tanggal, total berjalan
+// Akumulasi lembur harian: urut tanggal, total berjalan (hanya bagian lembur)
 const ak = akumulasiHarian(data, '2026-09', GAJI_POKOK, '12');
 assert.deepStrictEqual(ak.map(r => r.tanggal), ['2026-09-01', '2026-09-02', '2026-09-03']);
-assert.ok(Math.abs(ak[0].upah - 13.5 * rate) < 1e-9);
+assert.ok(Math.abs(ak[0].upah - 5.5 * rate) < 1e-9);
 assert.ok(Math.abs(ak[0].akumulasi - ak[0].upah) < 1e-9);
 assert.ok(Math.abs(ak[1].upah - 23 * rate) < 1e-9);
 assert.ok(Math.abs(ak[1].akumulasi - (ak[0].upah + ak[1].upah)) < 1e-9);
 assert.strictEqual(ak[2].upah, 0);
-assert.ok(Math.abs(ak[2].akumulasi - s.total) < 1e-9);
+assert.ok(Math.abs(ak[2].akumulasi - s.uangLembur) < 1e-9);
 
 // PPh 21: bruto 100jt setahun, JHT/JP 1,5jt, TK/0 -> pkp 39,5jt -> 5%
 assert.strictEqual(pph21Setahun(0, 0, 54000000), 0);
@@ -111,7 +118,7 @@ assert.ok(pph21Setahun(ambang * 1.01, bpjsSetahun, 54000000) > 0);
 // ambang setahun / 12 = ambang bruto bulanan TK/0 (sekitar 4,87 juta)
 assert.ok(Math.abs(ambang / 12 - 4870924) < 10);
 
-// Hitung gaji: potongan BPJS dari gaji pokok, PPh dari bruto
+// Hitung gaji: pokok penuh + lembur; potongan BPJS dari gaji pokok, PPh dari bruto
 const g = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '12');
 assert.ok(Math.abs(g.bpjsTk - GAJI_POKOK * 0.03) < 1e-9);
 assert.ok(Math.abs(g.bpjsKes - GAJI_POKOK * 0.01) < 1e-9);
@@ -120,9 +127,17 @@ assert.ok(Math.abs(g.bersih - (g.bruto - g.bpjsTk - g.bpjsKes - g.pph)) < 1e-9);
 assert.ok(g.bersih < g.bruto);
 const g11 = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '11');
 assert.ok(g11.bruto < g.bruto);
-// Penjelasan kenapa PPh 0: kurangSetahun > 0 selama belum kena pajak
-assert.ok(g.kurangSetahun > 0);
+// Rutin sebulan penuh di atas ambang tahunan, tapi TER masih 0% di bawah 5,4jt
+assert.strictEqual(g.pph, 0);
+assert.strictEqual(g.kurangSetahun, 0);
 assert.strictEqual(g.ambangSetahun, ambangPajakSetahun(bpjsSetahun, 54000000));
+// Penyesuaian: potongan mengurangi rutin, selisih menggeser bruto dan bersih
+const gAdj = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '12', {}, { pot: { '2026-09': 200000 }, sel: { '2026-09': -50000 } });
+assert.strictEqual(gAdj.potonganAbsensi, 200000);
+assert.strictEqual(gAdj.selisih, -50000);
+assert.ok(Math.abs(gAdj.rutin - (g.rutin - 200000)) < 1e-9);
+assert.ok(Math.abs(gAdj.bruto - (g.rutin - 250000)) < 1e-9);
+assert.ok(Math.abs(gAdj.bersih - (gAdj.bruto - gAdj.bpjsTk - gAdj.bpjsKes - gAdj.pph)) < 1e-9);
 
 // THR/bonus: PPh-nya selisih metode tahunan, dipotong penuh di bulan itu
 const dataBesar = {};
@@ -139,6 +154,22 @@ assert.ok(Math.abs(gT.pphThr - (pph21Setahun(gB.bruto * 12 + GAJI_POKOK, GAJI_PO
 // Sudah kena pajak -> tidak ada kekurangan
 assert.ok(gB.pph > 0);
 assert.strictEqual(gB.kurangSetahun, 0);
+
+// Regresi slip Januari 2026: 20 kerja + 6 lembur + 5 libur, mode 11,
+// pokok 3.616.901 dibayar penuh, lembur 208 jam = 4.348.644
+const janData = {};
+for (let i = 1; i <= 31; i++) janData['2026-01-' + String(i).padStart(2, '0')] = { masuk: '06:00', keluar: '17:00' };
+for (const t of ['2026-01-01', '2026-01-03', '2026-01-10', '2026-01-17', '2026-01-24', '2026-01-31']) janData[t].lembur = true;
+for (const t of ['2026-01-02', '2026-01-09', '2026-01-16', '2026-01-23', '2026-01-30']) janData[t] = { libur: true };
+const gJanSlip = hitungGaji(janData, '2026-01', 3616901, 'K/1', '11', {}, { sel: { '2026-01': -32487 } });
+assert.strictEqual(gJanSlip.hariKerja, 20);
+assert.strictEqual(gJanSlip.hariLembur, 6);
+assert.strictEqual(gJanSlip.hariLibur, 5);
+assert.strictEqual(gJanSlip.jam, 208);
+assert.strictEqual(Math.round(gJanSlip.uangLembur), 4348644);
+assert.strictEqual(gJanSlip.gajiKotor, 3616901);
+assert.strictEqual(Math.round(gJanSlip.rutin), 7965545);
+assert.strictEqual(Math.round(gJanSlip.bruto), 7933058);
 
 // --- Tabel TER (Lampiran PP 58/2023) ---
 assert.strictEqual(TER.A.length, 44);

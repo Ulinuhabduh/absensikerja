@@ -79,20 +79,29 @@ function upahPerJam(gajiPokok) {
   return gajiPokok / PEMBAGI_JAM;
 }
 
-// Upah satu hari: hari kerja normal = 8 jam + lembur hari itu; hari Lembur = hitungan lemburnya saja
+// Upah lembur satu hari (hanya bagian lembur; gaji pokok bersifat bulanan tetap,
+// dibayar penuh terpisah). Hari biasa = jam lembur hari itu; hari Lembur = hitungan lemburnya.
 function pendapatanHari(rec, gajiPokok, mode) {
   if (!rec || rec.libur) return 0;
   const rate = upahPerJam(gajiPokok);
-  if (rec.lembur) return jamLemburHari(rec, mode) * rate;
   if (!rec.masuk || !rec.keluar) return 0;
-  return (JAM_KERJA_SEHARI + jamLemburHari(rec, mode)) * rate;
+  return jamLemburHari(rec, mode) * rate;
 }
 
-function ringkasanBulan(data, bulan, gajiPokok, mode) {
-  let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0;
+// Ringkasan bulanan model gaji bulanan tetap (seperti slip perusahaan):
+// gaji pokok dibayar penuh, potongan absensi/alfa diinput manual per bulan,
+// uang lembur dijumlah dari jam lembur. gajiHarian hanya info pro-rata.
+function ringkasanBulan(data, bulan, gajiPokok, mode, potonganAbsensi) {
+  const pot = Number(potonganAbsensi) || 0;
+  let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0, hariAlfa = 0, hariIzin = 0;
   for (const [tgl, rec] of Object.entries(data)) {
     if (!tgl.startsWith(bulan)) continue;
-    if (rec.libur) { hariLibur++; continue; }
+    if (rec.libur) {
+      hariLibur++;
+      if (rec.ket === 'alfa') hariAlfa++;
+      else if (rec.ket === 'izin') hariIzin++;
+      continue;
+    }
     if (rec.lembur) { hariLembur++; jam += jamLemburHari(rec, mode); continue; }
     if (rec.masuk && rec.keluar) hariKerja++;
     jam += jamLemburHari(rec, mode);
@@ -100,16 +109,20 @@ function ringkasanBulan(data, bulan, gajiPokok, mode) {
   const rate = upahPerJam(gajiPokok);
   const gajiHarian = JAM_KERJA_SEHARI * rate * hariKerja;
   const uangLembur = jam * rate;
+  const gajiKotor = gajiPokok - pot;
   return {
-    jam, hariKerja, hariLembur, hariLibur, upahPerJam: rate,
+    jam, hariKerja, hariLembur, hariLibur, hariAlfa, hariIzin, upahPerJam: rate,
     gajiHarian,
     uangLembur,
     gajiPokok,
-    total: gajiHarian + uangLembur,
+    potonganAbsensi: pot,
+    gajiKotor,
+    total: gajiKotor + uangLembur,
   };
 }
 
-// Akumulasi berurutan: upah hari itu + total berjalan sampai akhir bulan
+// Akumulasi lembur harian berurutan: upah lembur hari itu + total berjalan sampai akhir bulan.
+// Kolom ini hanya menjumlah bagian lembur; gaji pokok dihitung penuh di ringkasan.
 function akumulasiHarian(data, bulan, gajiPokok, mode) {
   let total = 0;
   return Object.keys(data).filter(k => k.startsWith(bulan)).sort().map(k => {
@@ -217,72 +230,94 @@ function ambangPajakSetahun(bpjsSetahun, ptkp) {
   return a <= 120000000 ? a : 6000000 + bpjsSetahun + ptkp;
 }
 
-// PPh atas THR/bonus: selisih PPh setahun (teratur + THR) dengan PPh setahun teratur saja
-function pphAtasThr(brutoBulanan, nilaiThr, gajiPokok, ptkp) {
-  const bpjsSetahun = gajiPokok * 0.03 * 12;
-  const teraturSetahun = brutoBulanan * 12;
-  return pph21Setahun(teraturSetahun + nilaiThr, bpjsSetahun, PTKP[ptkp] || 0)
-    - pph21Setahun(teraturSetahun, bpjsSetahun, PTKP[ptkp] || 0);
+// Penyesuaian per bulan: potongan absensi/alfa dan selisih/koreksi (bisa negatif).
+// Bentuk: { pot: { 'YYYY-MM': nominal }, sel: { 'YYYY-MM': nominal } }
+function adjBaca(adjMap, bulan) {
+  const m = (adjMap && typeof adjMap === 'object') ? adjMap : {};
+  const pot = m.pot || m.potongan || {};
+  const sel = m.sel || m.selisih || {};
+  return { pot: Number(pot[bulan]) || 0, sel: Number(sel[bulan]) || 0 };
 }
 
-function brutoSetahunAktual(data, tahun, gajiPokok, mode, thrMap) {
+// PPh atas THR/bonus: selisih PPh setahun (rutin disetahunkan + selisih + THR)
+// dengan PPh setahun rutin saja. Rutin = gaji kotor + lembur satu bulan.
+function pphAtasThr(brutoRutin, selisih, nilaiThr, gajiPokok, ptkp) {
+  if (arguments.length <= 4) {
+    ptkp = gajiPokok; gajiPokok = nilaiThr; nilaiThr = selisih; selisih = 0;
+  }
+  const bpjsSetahun = gajiPokok * 0.03 * 12;
+  const reg = brutoRutin * 12 + (Number(selisih) || 0);
+  return pph21Setahun(reg + nilaiThr, bpjsSetahun, PTKP[ptkp] || 0)
+    - pph21Setahun(reg, bpjsSetahun, PTKP[ptkp] || 0);
+}
+
+function brutoSetahunAktual(data, tahun, gajiPokok, mode, thrMap, adjMap) {
   const map = thrMap || {};
   let total = 0;
   for (let b = 1; b <= 12; b++) {
     const key = tahun + '-' + String(b).padStart(2, '0');
-    total += ringkasanBulan(data, key, gajiPokok, mode).total;
+    const adj = adjBaca(adjMap, key);
+    total += ringkasanBulan(data, key, gajiPokok, mode, adj.pot).total + adj.sel;
     if (map[key] > 0) total += map[key];
   }
   return total;
 }
 
-// PPh yang sudah dipotong Januari–November (TER + PPh atas THR)
-function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap) {
+// PPh yang sudah dipotong Januari–November (TER atas rutin+selisih + PPh atas THR)
+function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap) {
   const map = thrMap || {};
   const kat = kategoriTer(ptkp);
   let total = 0;
   for (let b = 1; b <= 11; b++) {
     const key = tahun + '-' + String(b).padStart(2, '0');
-    const bruto = ringkasanBulan(data, key, gajiPokok, mode).total;
+    const adj = adjBaca(adjMap, key);
+    const rutin = ringkasanBulan(data, key, gajiPokok, mode, adj.pot).total;
+    const bruto = rutin + adj.sel;
     total += terRate(bruto, kat).tarif * bruto;
-    if (map[key] > 0) total += pphAtasThr(bruto, map[key], gajiPokok, ptkp);
+    if (map[key] > 0) total += pphAtasThr(rutin, adj.sel, map[key], gajiPokok, ptkp);
   }
   return total;
 }
 
 // thrMap = { 'YYYY-MM': nominal } untuk semua THR/bonus
-function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap) {
+// adjMap = { pot: { 'YYYY-MM': potongan absensi/alfa }, sel: { 'YYYY-MM': selisih/koreksi } }
+function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
   const map = thrMap || {};
-  const s = ringkasanBulan(data, bulan, gajiPokok, mode);
+  const adj = adjBaca(adjMap, bulan);
+  const s = ringkasanBulan(data, bulan, gajiPokok, mode, adj.pot);
   const bpjsTk = gajiPokok * 0.03;
   const bpjsKes = gajiPokok * 0.01;
   const nilaiThr = map[bulan] > 0 ? map[bulan] : 0;
+  const rutin = s.total;
+  const bruto = rutin + adj.sel;
   const ptkpNilai = PTKP[ptkp] || 0;
   const kat = kategoriTer(ptkp);
   const desember = bulan.slice(5) === '12';
   let pphTeratur, pphThr, pph, ter = null, brutoSetahun, sudahPotong = 0;
   if (desember) {
     // Masa pajak terakhir: hitung setahun penuh (progresif), kurangi yang sudah dipotong Jan–Nov
-    brutoSetahun = brutoSetahunAktual(data, bulan.slice(0, 4), gajiPokok, mode, map);
-    sudahPotong = pphTerpotongJanNov(data, bulan.slice(0, 4), gajiPokok, ptkp, mode, map);
+    brutoSetahun = brutoSetahunAktual(data, bulan.slice(0, 4), gajiPokok, mode, map, adjMap);
+    sudahPotong = pphTerpotongJanNov(data, bulan.slice(0, 4), gajiPokok, ptkp, mode, map, adjMap);
     pphTeratur = pph21Setahun(brutoSetahun, bpjsTk * 12, ptkpNilai) - sudahPotong;
     pphThr = 0;
     pph = pphTeratur;
   } else {
-    ter = terRate(s.total, kat);
-    pphTeratur = ter.tarif * s.total;
-    pphThr = nilaiThr > 0 ? pphAtasThr(s.total, nilaiThr, gajiPokok, ptkp) : 0;
+    ter = terRate(bruto, kat);
+    pphTeratur = ter.tarif * bruto;
+    pphThr = nilaiThr > 0 ? pphAtasThr(rutin, adj.sel, nilaiThr, gajiPokok, ptkp) : 0;
     pph = pphTeratur + pphThr;
-    brutoSetahun = s.total * 12 + nilaiThr;
+    brutoSetahun = rutin * 12 + adj.sel + nilaiThr;
   }
   const ambangSetahun = ambangPajakSetahun(bpjsTk * 12, ptkpNilai);
   return Object.assign({}, s, {
-    bruto: s.total,
+    rutin,
+    bruto,
+    selisih: adj.sel,
     thr: nilaiThr,
     bpjsTk, bpjsKes,
     pphTeratur, pphThr, pph,
     potongan: bpjsTk + bpjsKes + pph,
-    bersih: s.total + nilaiThr - bpjsTk - bpjsKes - pph,
+    bersih: rutin + adj.sel + nilaiThr - bpjsTk - bpjsKes - pph,
     brutoTotalSetahun: brutoSetahun,
     ambangSetahun,
     kurangSetahun: Math.max(0, ambangSetahun - brutoSetahun),
