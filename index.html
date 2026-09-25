@@ -58,6 +58,10 @@ td{padding:8px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabu
 tr:last-child td{border-bottom:0}
 tr.clickable{cursor:pointer}
 tr.clickable:hover td{background:#f6f8fb}
+tr.clickable.row-lembur td{background:var(--amber-bg)}
+tr.clickable.row-lembur:hover td{background:#fde68a}
+tr.clickable.row-libur td{background:#fee2e2}
+tr.clickable.row-libur:hover td{background:#fecaca}
 .outline{width:100%;margin-top:12px;background:#fff;border:1.5px dashed #cfd8e6;border-radius:12px;padding:12px;color:var(--muted);font-size:.85rem;font-weight:600;cursor:pointer}
 #manualForm{border-top:1px dashed var(--line);margin-top:12px;padding-top:14px}
 .manual-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
@@ -176,11 +180,12 @@ td.num,th.num{text-align:right}
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Tanggal</th><th>Jam</th><th class="num">Lembur</th><th class="num">Dapat</th><th class="num">Akumulasi</th><th>Status</th><th></th></tr>
+          <tr><th>Tanggal</th><th>Jam</th><th class="num">Lembur</th><th class="num">Dapat</th><th class="num">Akumulasi</th><th></th></tr>
         </thead>
         <tbody id="monthRows"></tbody>
       </table>
     </div>
+    <p class="hint">Baris kuning = lembur, baris merah = libur.</p>
     <button class="outline" id="btnManual">+ Isi / Edit Tanggal Manual</button>
     <div id="manualForm" hidden>
       <div class="manual-grid">
@@ -388,19 +393,18 @@ function renderMonth() {
   const tbody = el('monthRows');
   tbody.innerHTML = '';
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">Belum ada data</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Belum ada data</td></tr>';
   }
   for (const row of rows) {
     const r = row.rec;
-    const badge = r.libur ? '<span class="badge libur">Libur</span>' : (r.lembur ? '<span class="badge lembur">Lembur</span>' : '');
     const label = new Date(row.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
     const jam = tersembunyi && (r.masuk || r.keluar)
       ? '***'
       : (r.masuk || '--:--') + ' – ' + (r.keluar || '--:--');
     const tr = document.createElement('tr');
-    tr.className = 'clickable';
+    tr.className = 'clickable' + (r.libur ? ' row-libur' : (r.lembur ? ' row-lembur' : ''));
     tr.onclick = () => openManual(row.tanggal);
-    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r, mode))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td><td>' + badge + '</td>' +
+    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r, mode))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td>' +
       '<td><button class="mini" data-copy="' + row.tanggal + '" title="Salin ke tanggal berikutnya">copy</button></td>';
     tbody.appendChild(tr);
   }
