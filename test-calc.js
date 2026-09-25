@@ -131,19 +131,26 @@ assert.ok(g11.bruto < g.bruto);
 assert.strictEqual(g.pph, 0);
 assert.strictEqual(g.kurangSetahun, 0);
 assert.strictEqual(g.ambangSetahun, ambangPajakSetahun(bpjsSetahun, 54000000));
-// Penyesuaian: potongan mengurangi rutin, selisih menggeser bruto dan bersih
-const gAdj = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '12', {}, { pot: { '2026-09': 200000 }, sel: { '2026-09': -50000 } });
-assert.strictEqual(gAdj.potonganAbsensi, 200000);
+// Penyesuaian: selisih menggeser bruto dan bersih; potongan alfa otomatis pokok/21
+const dataAdj = {
+  '2026-09-01': { masuk: '06:00', keluar: '17:00' },
+  '2026-09-02': { libur: true, ket: 'alfa' },
+};
+const gAdj = hitungGaji(dataAdj, '2026-09', GAJI_POKOK, 'TK/0', '12', {}, { sel: { '2026-09': -50000 } });
+assert.ok(Math.abs(gAdj.potonganAbsensi - GAJI_POKOK / 21) < 1e-9);
+assert.strictEqual(gAdj.hariAlfa, 1);
 assert.strictEqual(gAdj.selisih, -50000);
-assert.ok(Math.abs(gAdj.rutin - (g.rutin - 200000)) < 1e-9);
-assert.ok(Math.abs(gAdj.bruto - (g.rutin - 250000)) < 1e-9);
+assert.ok(Math.abs(gAdj.rutin - (GAJI_POKOK - GAJI_POKOK / 21 + 5.5 * rate)) < 1e-9);
+assert.ok(Math.abs(gAdj.bruto - (gAdj.rutin - 50000)) < 1e-9);
 assert.ok(Math.abs(gAdj.bersih - (gAdj.bruto - gAdj.bpjsTk - gAdj.bpjsKes - gAdj.pph)) < 1e-9);
-// Potongan sekali isi (angka) berlaku untuk bulan mana pun
-const gFix = hitungGaji(data, '2026-09', GAJI_POKOK, 'TK/0', '12', {}, { pot: 150000 });
-assert.strictEqual(gFix.potonganAbsensi, 150000);
-assert.ok(Math.abs(gFix.rutin - (g.rutin - 150000)) < 1e-9);
-const gFixNov = hitungGaji(data, '2026-10', GAJI_POKOK, 'TK/0', '12', {}, { pot: 150000 });
-assert.strictEqual(gFixNov.potonganAbsensi, 150000);
+// Aturan sama berlaku untuk bulan mana pun: 1 alfa selalu pokok/21
+const dataAdjNov = {
+  '2026-10-01': { masuk: '06:00', keluar: '17:00' },
+  '2026-10-02': { libur: true, ket: 'alfa' },
+};
+const gAdjNov = hitungGaji(dataAdjNov, '2026-10', GAJI_POKOK, 'TK/0', '12', {}, {});
+assert.ok(Math.abs(gAdjNov.potonganAbsensi - GAJI_POKOK / 21) < 1e-9);
+assert.ok(Math.abs(gAdjNov.potonganAbsensi - gAdj.potonganAbsensi) < 1e-9);
 
 // THR/bonus: PPh-nya selisih metode tahunan, dipotong penuh di bulan itu
 const dataBesar = {};
@@ -174,6 +181,7 @@ assert.strictEqual(gJanSlip.hariLibur, 5);
 assert.strictEqual(gJanSlip.jam, 208);
 assert.strictEqual(Math.round(gJanSlip.uangLembur), 4348644);
 assert.strictEqual(gJanSlip.gajiKotor, 3616901);
+assert.strictEqual(gJanSlip.potonganAbsensi, 0);
 assert.strictEqual(Math.round(gJanSlip.rutin), 7965545);
 assert.strictEqual(Math.round(gJanSlip.bruto), 7933058);
 

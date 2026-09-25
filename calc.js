@@ -1,6 +1,8 @@
 const PEMBAGI_JAM = 173;
 const JAM_KERJA_SEHARI = 8;
 const AKHIR_KERJA_NORMAL = '14:00';
+// Pembagi potongan absensi: 1 hari alfa = gaji pokok / 21
+const PEMBAGI_POTONGAN = 21;
 
 // Mode jam kerja: istirahat dipotong dari jam kehadiran, lembur = jam lembur hari biasa
 const MODE_JAM = {
@@ -89,10 +91,12 @@ function pendapatanHari(rec, gajiPokok, mode) {
 }
 
 // Ringkasan bulanan model gaji bulanan tetap (seperti slip perusahaan):
-// gaji pokok dibayar penuh, potongan absensi/alfa diinput manual per bulan,
+// gaji pokok dibayar penuh, potongan = hari alfa x pokok/21 (otomatis),
 // uang lembur dijumlah dari jam lembur. gajiHarian hanya info pro-rata.
-function ringkasanBulan(data, bulan, gajiPokok, mode, potonganAbsensi) {
-  const pot = Number(potonganAbsensi) || 0;
+// Tandai ket 'alfa' hanya untuk absen di hari kerja; ALFA di hari OFF
+// (lembur total yang tidak dihadiri) biarkan Libur biasa agar tidak terpotong.
+// potonganOverride opsional untuk koreksi manual (dipakai tes).
+function ringkasanBulan(data, bulan, gajiPokok, mode, potonganOverride) {
   let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0, hariAlfa = 0, hariIzin = 0;
   for (const [tgl, rec] of Object.entries(data)) {
     if (!tgl.startsWith(bulan)) continue;
@@ -109,6 +113,7 @@ function ringkasanBulan(data, bulan, gajiPokok, mode, potonganAbsensi) {
   const rate = upahPerJam(gajiPokok);
   const gajiHarian = JAM_KERJA_SEHARI * rate * hariKerja;
   const uangLembur = jam * rate;
+  const pot = potonganOverride === undefined ? hariAlfa * gajiPokok / PEMBAGI_POTONGAN : Number(potonganOverride) || 0;
   const gajiKotor = gajiPokok - pot;
   return {
     jam, hariKerja, hariLembur, hariLibur, hariAlfa, hariIzin, upahPerJam: rate,
@@ -230,18 +235,12 @@ function ambangPajakSetahun(bpjsSetahun, ptkp) {
   return a <= 120000000 ? a : 6000000 + bpjsSetahun + ptkp;
 }
 
-// Penyesuaian: potongan absensi/alfa sekali isi (angka, berlaku semua bulan)
-// atau peta per bulan; selisih/koreksi selalu peta per bulan (bisa negatif).
-// Bentuk: { pot: 50000 | { 'YYYY-MM': nominal }, sel: { 'YYYY-MM': nominal } }
+// Selisih/koreksi per bulan (bisa negatif). Bentuk: { sel: { 'YYYY-MM': nominal } }
 function adjBaca(adjMap, bulan) {
   const m = (adjMap && typeof adjMap === 'object') ? adjMap : {};
-  const potRaw = m.pot !== undefined ? m.pot : m.potongan;
-  const pot = (potRaw !== null && typeof potRaw === 'object' && !Array.isArray(potRaw))
-    ? Number(potRaw[bulan]) || 0
-    : Number(potRaw) || 0;
   const selRaw = m.sel !== undefined ? m.sel : m.selisih;
   const selMap = (selRaw !== null && typeof selRaw === 'object' && !Array.isArray(selRaw)) ? selRaw : {};
-  return { pot, sel: Number(selMap[bulan]) || 0 };
+  return { sel: Number(selMap[bulan]) || 0 };
 }
 
 // PPh atas THR/bonus: selisih PPh setahun (rutin disetahunkan + selisih + THR)
@@ -262,7 +261,7 @@ function brutoSetahunAktual(data, tahun, gajiPokok, mode, thrMap, adjMap) {
   for (let b = 1; b <= 12; b++) {
     const key = tahun + '-' + String(b).padStart(2, '0');
     const adj = adjBaca(adjMap, key);
-    total += ringkasanBulan(data, key, gajiPokok, mode, adj.pot).total + adj.sel;
+    total += ringkasanBulan(data, key, gajiPokok, mode).total + adj.sel;
     if (map[key] > 0) total += map[key];
   }
   return total;
@@ -276,7 +275,7 @@ function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap) 
   for (let b = 1; b <= 11; b++) {
     const key = tahun + '-' + String(b).padStart(2, '0');
     const adj = adjBaca(adjMap, key);
-    const rutin = ringkasanBulan(data, key, gajiPokok, mode, adj.pot).total;
+    const rutin = ringkasanBulan(data, key, gajiPokok, mode).total;
     const bruto = rutin + adj.sel;
     total += terRate(bruto, kat).tarif * bruto;
     if (map[key] > 0) total += pphAtasThr(rutin, adj.sel, map[key], gajiPokok, ptkp);
@@ -285,11 +284,11 @@ function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap) 
 }
 
 // thrMap = { 'YYYY-MM': nominal } untuk semua THR/bonus
-// adjMap = { pot: { 'YYYY-MM': potongan absensi/alfa }, sel: { 'YYYY-MM': selisih/koreksi } }
+// adjMap = { sel: { 'YYYY-MM': selisih/koreksi } }
 function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
   const map = thrMap || {};
   const adj = adjBaca(adjMap, bulan);
-  const s = ringkasanBulan(data, bulan, gajiPokok, mode, adj.pot);
+  const s = ringkasanBulan(data, bulan, gajiPokok, mode);
   const bpjsTk = gajiPokok * 0.03;
   const bpjsKes = gajiPokok * 0.01;
   const nilaiThr = map[bulan] > 0 ? map[bulan] : 0;
@@ -335,5 +334,5 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, MODE_JAM, PTKP, TER, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, kategoriTer, terRate, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, pphAtasThr, brutoSetahunAktual, pphTerpotongJanNov, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PEMBAGI_POTONGAN, MODE_JAM, PTKP, TER, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, kategoriTer, terRate, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, pphAtasThr, brutoSetahunAktual, pphTerpotongJanNov, hitungGaji };
 }

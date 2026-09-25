@@ -216,9 +216,8 @@ td.num,th.num{text-align:right}
       <div class="row"><span>Upah per jam</span><strong id="sumRate">Rp0</strong></div>
       <div class="row"><span>Gaji harian (info pro-rata)</span><strong id="sumGajiHarian">Rp0</strong></div>
       <div class="row"><span>Uang lembur (<span id="sumJam">0 jam</span>)</span><strong id="sumUang">Rp0</strong></div>
-      <div class="row pot"><span>Potongan absensi / alfa</span><strong id="sumPot">-Rp0</strong></div>
+      <div class="row pot"><span>Potongan alfa (<span id="sumAlfaKet">0 hari</span> &times; pokok/21)</span><strong id="sumPot">-Rp0</strong></div>
       <div class="manual-grid">
-        <label class="full">Potongan absensi / alfa, mis. alfa/izin tanpa ket (Rp, sekali isi berlaku semua bulan)<input type="text" id="potInput" inputmode="numeric" placeholder="0"></label>
         <label class="full">Selisih / koreksi bulan ini (Rp, negatif bila pengurang)<input type="text" id="selInput" inputmode="numeric" placeholder="0"></label>
       </div>
       <p class="hint" id="sumLiburInfo"></p>
@@ -298,8 +297,8 @@ const KEY_HIDE = 'absensi-harian-hide';
 const KEY_KARYAWAN = 'absensi-harian-karyawan';
 const KEY_MODE = 'absensi-harian-mode';
 const KEY_THR = 'absensi-harian-thr';
-const KEY_POT = 'absensi-harian-potongan';
 const KEY_SEL = 'absensi-harian-selisih';
+try { localStorage.removeItem('absensi-harian-potongan'); } catch (e) {}
 
 const el = id => document.getElementById(id);
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -323,16 +322,9 @@ let mode = localStorage.getItem(KEY_MODE) || '12';
 if (mode !== '11' && mode !== '12') mode = mode === '1' ? '11' : '12';
 let thr = {};
 try { thr = JSON.parse(localStorage.getItem(KEY_THR)) || {}; } catch (e) { thr = {}; }
-let pot = 0;
-try {
-  const v = JSON.parse(localStorage.getItem(KEY_POT));
-  pot = (v !== null && typeof v === 'object' && !Array.isArray(v))
-    ? Number(Object.values(v).pop()) || 0
-    : Number(v) || 0;
-} catch (e) { pot = 0; }
 let sel = {};
 try { sel = JSON.parse(localStorage.getItem(KEY_SEL)) || {}; } catch (e) { sel = {}; }
-const adjMap = () => ({ pot, sel });
+const adjMap = () => ({ sel });
 let manLembur = false;
 let manLibur = false;
 let manKet = '';
@@ -441,10 +433,10 @@ function renderMonth() {
   el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
   el('sumUang').textContent = rahasia(rupiah(g.uangLembur));
   el('sumPot').textContent = rahasia('-' + rupiah(g.potonganAbsensi));
-  if (document.activeElement !== el('potInput')) el('potInput').value = pot ? formatRibuan(String(pot)) : '';
+  el('sumAlfaKet').textContent = g.hariAlfa + ' hari';
   if (document.activeElement !== el('selInput')) el('selInput').value = g.selisih ? formatRibuan(String(g.selisih)) : '';
   el('sumLiburInfo').textContent = g.hariLibur
-    ? g.hariLibur + ' hari libur (' + g.hariAlfa + ' alfa, ' + g.hariIzin + ' izin). Isi potongan bila ada alfa/izin tanpa keterangan jelas.'
+    ? g.hariLibur + ' hari libur (' + g.hariAlfa + ' alfa, ' + g.hariIzin + ' izin). Alfa di hari kerja memotong pokok/21 per hari; izin ber-surat tidak dipotong.'
     : '';
   el('sumKotor').textContent = rahasia(rupiah(g.gajiKotor));
   el('sumSelRow').hidden = !(g.selisih !== 0);
@@ -538,7 +530,7 @@ function renderPrint() {
       '<div class="p-sum-title">RINCIAN PERHITUNGAN GAJI</div>' +
       baris('Gaji pokok (acuan, penuh)', rupiah(g.gajiPokok)) +
       baris('Upah per jam', rupiah(g.upahPerJam)) +
-      (g.potonganAbsensi ? baris('Potongan absensi / alfa', '-' + rupiah(g.potonganAbsensi)) : '') +
+      (g.potonganAbsensi ? baris('Potongan alfa (' + g.hariAlfa + ' hari × pokok/21)', '-' + rupiah(g.potonganAbsensi)) : '') +
       baris('Gaji kotor', rupiah(g.gajiKotor)) +
       baris('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
       (g.selisih !== 0 ? baris('Selisih / koreksi', (g.selisih < 0 ? '-' : '+') + rupiah(Math.abs(g.selisih))) : '') +
@@ -749,7 +741,7 @@ function renderPphData() {
         tr('Gaji pokok (acuan, penuh)', rupiah(g.gajiPokok)) +
         tr('Upah per jam (pokok &divide; 173)', rupiah(g.upahPerJam)) +
         tr('Hari tercatat', g.hariKerja + ' hari kerja' + (g.hariLembur ? ' + ' + g.hariLembur + ' hari lembur' : '') + (g.hariLibur ? ' + ' + g.hariLibur + ' libur (' + g.hariAlfa + ' alfa)' : '')) +
-        (g.potonganAbsensi ? tr('Potongan absensi / alfa', '-' + rupiah(g.potonganAbsensi)) : '') +
+        (g.potonganAbsensi ? tr('Potongan alfa (' + g.hariAlfa + ' hari × pokok/21)', '-' + rupiah(g.potonganAbsensi)) : '') +
         tr('Gaji kotor (pokok &minus; potongan)', rupiah(g.gajiKotor)) +
         tr('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
         (g.selisih !== 0 ? tr('Selisih / koreksi', (g.selisih < 0 ? '-' : '+') + rupiah(Math.abs(g.selisih))) : '') +
@@ -781,7 +773,6 @@ function exportData() {
     ptkp,
     mode,
     thr,
-    potongan: pot,
     selisih: sel,
     karyawan,
     data,
@@ -918,7 +909,7 @@ el('btnUbahGaji').onclick = () => {
   el('gajiInput').focus();
 };
 
-['gajiInput', 'thrNominal', 'potInput', 'selInput'].forEach(id => {
+['gajiInput', 'thrNominal', 'selInput'].forEach(id => {
   el(id).addEventListener('input', () => {
     const v = el(id).value;
     const neg = id === 'selInput' && /-/.test(v);
@@ -926,23 +917,15 @@ el('btnUbahGaji').onclick = () => {
   });
 });
 
-function simpanAdj(inputId, store, key) {
-  const raw = el(inputId).value;
-  if (inputId === 'potInput') {
-    pot = Number(String(raw).replace(/\D/g, '')) || 0;
-    localStorage.setItem(key, JSON.stringify(pot));
-    render();
-    return;
-  }
+el('selInput').addEventListener('change', () => {
+  const raw = el('selInput').value;
   const neg = /-/.test(raw);
   const val = Number(String(raw).replace(/\D/g, '')) || 0;
   const signed = neg ? -val : val;
-  if (signed) store[viewMonth] = signed; else delete store[viewMonth];
-  localStorage.setItem(key, JSON.stringify(store));
+  if (signed) sel[viewMonth] = signed; else delete sel[viewMonth];
+  localStorage.setItem(KEY_SEL, JSON.stringify(sel));
   render();
-}
-el('potInput').addEventListener('change', () => simpanAdj('potInput', pot, KEY_POT));
-el('selInput').addEventListener('change', () => simpanAdj('selInput', sel, KEY_SEL));
+});
 
 el('selPtkp').onchange = () => {
   ptkp = el('selPtkp').value;
@@ -998,12 +981,11 @@ el('btnExport').onclick = exportData;
 
 el('btnUserBaru').onclick = () => {
   if (!confirm('Hapus SEMUA data di browser ini dan mulai dari kosong?\n\nAbsensi, gaji pokok, THR, dan data karyawan akan hilang. Unduh backup JSON dulu kalau perlu.')) return;
-  [KEY, KEY_GAJI, KEY_PTKP, KEY_HIDE, KEY_KARYAWAN, KEY_MODE, KEY_THR, KEY_POT, KEY_SEL].forEach(k => localStorage.removeItem(k));
+  [KEY, KEY_GAJI, KEY_PTKP, KEY_HIDE, KEY_KARYAWAN, KEY_MODE, KEY_THR, KEY_SEL, 'absensi-harian-potongan'].forEach(k => localStorage.removeItem(k));
   data = {};
   gajiPokok = 0;
   ptkp = 'TK/0';
   thr = {};
-  pot = 0;
   sel = {};
   karyawan = { nama: '', noid: '', dept: '', kerja: '' };
   mode = '12';
@@ -1065,15 +1047,7 @@ el('importFile').onchange = async () => {
         localStorage.setItem(key, JSON.stringify(store));
       }
     }
-    {
-      const srcPot = parsed.potongan !== undefined ? parsed.potongan : parsed.pot;
-      if (srcPot !== undefined && srcPot !== null) {
-        pot = (typeof srcPot === 'object' && !Array.isArray(srcPot))
-          ? Number(Object.values(srcPot).pop()) || 0
-          : Number(srcPot) || 0;
-        localStorage.setItem(KEY_POT, JSON.stringify(pot));
-      }
-    }
+    try { localStorage.removeItem('absensi-harian-potongan'); } catch (e) {}
     if (parsed && parsed.karyawan && typeof parsed.karyawan === 'object') {
       karyawan = {
         nama: String(parsed.karyawan.nama || ''),
