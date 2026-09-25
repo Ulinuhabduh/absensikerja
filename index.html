@@ -214,7 +214,6 @@ td.num,th.num{text-align:right}
     <div class="summary">
       <div class="row"><span>Gaji pokok (acuan, dibayar penuh)<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
       <div class="row"><span>Upah per jam</span><strong id="sumRate">Rp0</strong></div>
-      <div class="row"><span>Gaji harian (info pro-rata)</span><strong id="sumGajiHarian">Rp0</strong></div>
       <div class="row"><span>Uang lembur (<span id="sumJam">0 jam</span>)</span><strong id="sumUang">Rp0</strong></div>
       <div class="row pot"><span>Potongan alfa (<span id="sumAlfaKet">0 hari</span> &times; pokok/21)</span><strong id="sumPot">-Rp0</strong></div>
       <div class="manual-grid">
@@ -244,7 +243,7 @@ td.num,th.num{text-align:right}
       <p class="pph-note" id="sumPphNote" hidden></p>
       <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
       <div class="days" id="sumHari"></div>
-      <p class="hint">Gaji pokok dibayar penuh setiap bulan seperti slip perusahaan. Gaji harian hanya info pro-rata. Kolom Dapat/Akumulasi = upah lembur hari itu (bagian lembur saja). Potongan BPJS dari gaji pokok acuan; PPh 21 memakai bruto kotor + lembur + selisih.</p>
+      <p class="hint">Gaji pokok dibayar penuh setiap bulan seperti slip perusahaan. Kolom Lembur Rp/Akm Lembur = upah lembur hari itu (bagian lembur saja). Potongan BPJS dari gaji pokok acuan; PPh 21 memakai bruto kotor + lembur + selisih.</p>
     </div>
     <button class="btn keluar" id="btnPdf" style="width:100%;margin-top:16px">Download PDF Bulan Ini</button>
     <p class="hint">Terbuka dialog print &mdash; pilih "Save as PDF". Hasilnya 1 halaman A4, 31 baris tanggal.</p>
@@ -429,7 +428,6 @@ function renderMonth() {
   const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
   el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
   el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
-  el('sumGajiHarian').textContent = rahasia(rupiah(g.gajiHarian));
   el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
   el('sumUang').textContent = rahasia(rupiah(g.uangLembur));
   el('sumPot').textContent = rahasia('-' + rupiah(g.potonganAbsensi));
