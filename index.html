@@ -506,6 +506,21 @@ function renderPph() {
     return tr4(k, rupiah(c.pkp), rupiah(c.pajak), rupiah(c.pajak / 12));
   }).join('');
   const cB = hitung(25000000, 18000000, 'TK/0');
+  const fmtPersen = t => String(t).replace('.', ',') + '%';
+  const terIsi = kat => {
+    let prev = 0;
+    return TER[kat].map(([batas, tarif], i) => {
+      let lapis;
+      if (!isFinite(batas)) lapis = 'di atas ' + rupiah(prev);
+      else if (i === 0) lapis = 'sampai dengan ' + rupiah(batas);
+      else lapis = 'di atas ' + rupiah(prev) + ' s.d. ' + rupiah(batas);
+      prev = batas;
+      return tr2(lapis, fmtPersen(tarif));
+    }).join('');
+  };
+  const terA = tr2('Penghasilan bruto bulanan', 'Tarif', 'kepala') + terIsi('A');
+  const terB = tr2('Penghasilan bruto bulanan', 'Tarif', 'kepala') + terIsi('B');
+  const terC = tr2('Penghasilan bruto bulanan', 'Tarif', 'kepala') + terIsi('C');
 
   el('printArea').innerHTML =
     '<div class="pph">' +
@@ -547,16 +562,34 @@ function renderPph() {
       '</table>' +
 
       '<h2>5. Tarif Efektif Rata-rata / TER (Lampiran PP 58/2023)</h2>' +
-      '<p>Sejak 1 Januari 2024, pemotongan PPh 21 bulanan tidak lagi menghitung ulang setahun setiap bulan. Pemberi kerja cukup mengalikan penghasilan bruto bulanan dengan satu tarif efektif (TER) yang dibaca dari tabel Lampiran PP 58/2023. Karena itu tarifnya berbeda-beda menurut bruto bulanan, bukan persentase tetap.</p>' +
-      '<p>Tabel TER dibagi tiga kategori sesuai status PTKP:</p>' +
+      '<p>Sejak 1 Januari 2024, pemotongan PPh 21 bulanan tidak lagi menghitung ulang setahun setiap bulan. Pemberi kerja cukup mengalikan penghasilan bruto bulanan dengan satu tarif efektif (TER) yang dibaca dari tabel Lampiran PP 58/2023: <b>PPh 21 sebulan = bruto bulanan &times; tarif TER</b>. Tarifnya berbeda-beda menurut bruto bulanan, bukan persentase tetap.</p>' +
+      '<p>Tabel TER dibagi tiga kategori bulanan sesuai status PTKP, plus satu tabel harian:</p>' +
       '<table><colgroup><col style="width:28%"><col style="width:72%"></colgroup>' +
-        trTeks('Kategori A', 'PTKP TK/0, TK/1, dan K/0 (Rp54.000.000 dan Rp58.500.000).') +
-        trTeks('Kategori B', 'PTKP TK/2, TK/3, K/1, dan K/2 (Rp63.000.000 dan Rp67.500.000).') +
-        trTeks('Kategori C', 'PTKP K/3 (Rp72.000.000).') +
+        trTeks('Kategori A', 'PTKP TK/0 (Rp54.000.000), TK/1 (Rp58.500.000), dan K/0 (Rp58.500.000). 44 lapisan.') +
+        trTeks('Kategori B', 'PTKP TK/2 (Rp63.000.000), TK/3 (Rp67.500.000), K/1 (Rp63.000.000), dan K/2 (Rp67.500.000). 40 lapisan.') +
+        trTeks('Kategori C', 'PTKP K/3 (Rp72.000.000). 41 lapisan.') +
+        trTeks('Harian', 'Tarif efektif harian untuk pegawai tidak tetap / bukan pegawai dengan upah harian. 2 lapisan.') +
       '</table>' +
-      '<p>Tarifnya naik bertingkat mengikuti bruto bulanan. Pada Kategori A, tarifnya mulai 0% untuk bruto sampai Rp5.400.000, lalu naik bertahap hingga 34% untuk bruto di atas Rp1.400.000.000.</p>' +
-      '<p>TER dipakai untuk Masa Pajak Januari&ndash;November. Pada Masa Pajak Desember, PPh 21 dihitung ulang memakai tarif berlapis (metode tahunan), lalu dikurangi PPh 21 yang sudah dipotong Januari&ndash;November. Dengan begitu jumlah setahun tetap sesuai tarif progresif.</p>' +
-      '<p>Aplikasi ini memakai mekanisme tersebut: Januari&ndash;November memakai tabel TER (Kategori A/B/C sesuai PTKP Anda), Desember memakai perhitungan tahunan dan selisihnya. Tabel lengkap 44/40/41 lapisan sudah disalin dari Lampiran PP 58/2023 ke dalam aplikasi.</p>' +
+      '<p>Cara baca: cari baris yang memuat bruto bulanan Anda, ambil persennya. Batas bawah baris = bruto minimal untuk kena tarif itu (di atas nilai sebelumnya), batas atas = maksimalnya. Contoh Kategori A: bruto Rp6.000.000 masuk baris &ldquo;di atas Rp5.950.000 s.d. Rp6.300.000&rdquo; = 0,75%.</p>' +
+      '<p>TER dipakai untuk Masa Pajak Januari&ndash;November. Pada Masa Pajak Desember, PPh 21 dihitung ulang memakai tarif berlapis Pasal 17 (bagian 4), lalu dikurangi PPh 21 yang sudah dipotong Januari&ndash;November. Dengan begitu jumlah setahun tetap sesuai tarif progresif.</p>' +
+      '<p>Aplikasi ini memakai mekanisme tersebut: Januari&ndash;November memakai tabel TER (Kategori A/B/C sesuai PTKP Anda), Desember memakai perhitungan tahunan dan selisihnya. Tabel di bawah disalin lengkap dari Lampiran PP 58/2023 dan sama dengan data TER di aplikasi.</p>' +
+
+      '<p><b>5a. TER Bulanan Kategori A &mdash; TK/0, TK/1, K/0</b></p>' +
+      '<table>' + terA + '</table>' +
+
+      '<p><b>5b. TER Bulanan Kategori B &mdash; TK/2, TK/3, K/1, K/2</b></p>' +
+      '<table>' + terB + '</table>' +
+
+      '<p><b>5c. TER Bulanan Kategori C &mdash; K/3</b></p>' +
+      '<table>' + terC + '</table>' +
+
+      '<p><b>5d. TER Harian (Lampiran PP 58/2023 huruf D)</b></p>' +
+      '<table>' +
+        tr2('Penghasilan bruto harian', 'Tarif', 'kepala') +
+        tr2('sampai dengan Rp450.000', '0%') +
+        tr2('di atas Rp450.000 s.d. Rp2.500.000', '0,5%') +
+      '</table>' +
+      '<p class="kecil">Catatan harian: upah harian sampai Rp450.000 tidak dipotong; di atas itu dipotong 0,5% dari bruto harian (tanpa dikurangi PTKP harian). Tidak berlaku bila jumlah kumulatif sehari &gt; Rp2.500.000 atau penghasilan setahun melebihi PTKP &mdash; maka pakai tarif progresif/tabel bulanan.</p>' +
 
       '<h2>6. PTKP (PMK 101/2016)</h2>' +
       '<table>' + ptkpTabel + '</table>' +
