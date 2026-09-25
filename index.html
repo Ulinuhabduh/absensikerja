@@ -272,7 +272,7 @@ td.num,th.num{text-align:right}
       <button class="btn gray" id="btnImport">Import JSON</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="hint">Data tersimpan di browser ini. Unduh file JSON untuk backup / pindah perangkat. Import akan menggabungkan data &mdash; tanggal yang sama ditimpa isi file.</p>
+    <p class="hint">Data tersimpan di browser ini. Unduh file JSON untuk backup / pindah perangkat. Import akan mengganti seluruh data dengan isi file.</p>
     <p class="hint" id="backupMsg"></p>
     <button class="btn red" id="btnUserBaru" style="width:100%;margin-top:14px">Buat User Baru (Kosongkan Data)</button>
     <p class="hint">Menghapus semua absensi, gaji pokok, THR, dan data karyawan di browser ini supaya bisa diperagakan dari nol. Unduh backup JSON dulu kalau datanya masih dipakai.</p>
@@ -767,15 +767,17 @@ function importData(parsed) {
   const src = parsed && typeof parsed === 'object' && parsed.data && typeof parsed.data === 'object'
     ? parsed.data : parsed;
   if (!src || typeof src !== 'object' || Array.isArray(src)) throw new Error('struktur file tidak dikenal');
+  const next = {};
   let n = 0;
   for (const [k, r] of Object.entries(src)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
     const item = bersihkanRekaman(r);
     if (!item) continue;
-    data[k] = item;
+    next[k] = item;
     n++;
   }
   if (!n) throw new Error('tidak ada tanggal valid di file');
+  data = next;
   save();
   return n;
 }
@@ -971,8 +973,9 @@ el('importFile').onchange = async () => {
   if (!file) return;
   try {
     const parsed = JSON.parse(await file.text());
+    if (!confirm('Import akan MENGGANTI seluruh data di browser dengan isi file. Lanjut?')) return;
     const n = importData(parsed);
-    if (parsed && parsed.gaji_pokok && !gajiPokok) {
+    if (parsed && Object.prototype.hasOwnProperty.call(parsed, 'gaji_pokok')) {
       gajiPokok = Number(parsed.gaji_pokok) || 0;
       localStorage.setItem(KEY_GAJI, String(gajiPokok));
       el('gajiCard').hidden = gajiPokok > 0;
@@ -1005,7 +1008,7 @@ el('importFile').onchange = async () => {
       loadKaryawan();
     }
     render();
-    el('backupMsg').textContent = n + ' tanggal berhasil diimport.';
+    el('backupMsg').textContent = n + ' tanggal berhasil diimport (data lama diganti).';
   } catch (e) {
     el('backupMsg').textContent = 'Gagal import: ' + (e.message || e);
   }
