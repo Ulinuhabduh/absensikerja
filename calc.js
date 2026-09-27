@@ -50,13 +50,9 @@ function jamAcuan(rec) {
 function jamLemburHari(rec, mode) {
   if (!rec || rec.libur || !rec.masuk || !rec.keluar) return 0;
   if (rec.lembur) {
-    // ponytail: full lembur + centang biasa = fix 11 jam -> kerja 10 jam -> 23
-    if (rec.biasa) return 23;
     const kerja = durasiKerja(...jamAcuan(rec));
     return kerja > 0 ? bulatSetengah(jamLemburPenuh(kerja)) : 0;
   }
-  // ponytail: centang hari biasa = fix 11 jam (8 + 1 + 2) -> 3,5; tanpa centang = dinamis
-  if (rec.biasa) return 3.5;
   const kerja = durasiKerja(...jamAcuan(rec));
   if (kerja <= 0) return 0;
   return bulatSetengah(jamLemburNormal(kerja - JAM_KERJA_SEHARI));
@@ -84,7 +80,6 @@ function bersihkanRekaman(r) {
   if (masuk) out.masuk = masuk[1].padStart(2, '0') + ':' + masuk[2];
   if (keluar) out.keluar = keluar[1].padStart(2, '0') + ':' + keluar[2];
   if (r.lembur) out.lembur = true;
-  if (r.biasa) out.biasa = true;
   const jm = String(r.jadwalMasuk == null ? '' : r.jadwalMasuk).match(/^(\d{1,2}):(\d{2})/);
   const jk = String(r.jadwalKeluar == null ? '' : r.jadwalKeluar).match(/^(\d{1,2}):(\d{2})/);
   if (jm) out.jadwalMasuk = jm[1].padStart(2, '0') + ':' + jm[2];

@@ -37,7 +37,7 @@ h1{font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--m
 .toggle{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px;font-size:.9rem;font-weight:700;color:var(--muted);cursor:pointer}
 .toggle.active.lembur{background:var(--amber-bg);border-color:#f59e0b;color:var(--amber)}
 .toggle.active.libur{background:var(--slate-bg);border-color:#94a3b8;color:#475569}
-.toggle.active.biasa{background:#e0f2fe;border-color:#0284c7;color:#0369a1}
+.toggle.active.shift{background:#e0f2fe;border-color:#0284c7;color:#0369a1}
 .hint{font-size:.75rem;color:var(--muted);margin:10px 2px 0;line-height:1.45}
 .mini{background:none;border:0;color:var(--blue);font-size:.72rem;cursor:pointer;text-decoration:underline;padding:0 0 0 2px}
 .summary .row em{font-style:normal;color:var(--muted);font-size:.68rem}
@@ -65,7 +65,6 @@ tr.clickable.row-libur:hover td{background:#fecaca}
 .manual-grid label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 .manual-grid label.full{grid-column:1/-1}
 .manual-grid input{margin:4px 0 0}
-.manual-grid select{margin:4px 0 0;width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-size:1rem;font-family:inherit;background:#fff;color:var(--text)}
 .roster{font-size:.62rem;color:var(--muted)}
 .disiplin{font-size:.62rem;color:var(--red);font-weight:700}
 td.num,th.num{text-align:right}
@@ -159,14 +158,19 @@ td.num,th.num{text-align:right}
     <div class="toggles">
       <button class="toggle lembur" id="btnLembur">Lembur</button>
       <button class="toggle libur" id="btnLibur">Libur</button>
-      <button class="toggle biasa" id="btnBiasa" style="grid-column:1/-1">Hari biasa (fix 11 jam)</button>
+    </div>
+    <div class="toggles" id="shiftBtns" style="margin-top:10px">
+      <button class="toggle shift" data-shift="06:00|17:00">06:00–17:00</button>
+      <button class="toggle shift" data-shift="05:30|18:00">05:30–18:00</button>
+      <button class="toggle shift" data-shift="17:30|06:00">17:30–06:00</button>
+      <button class="toggle shift" data-shift="06:00|16:30">06:00–16:30</button>
     </div>
     <select class="ket-select" id="ketLibur" hidden>
       <option value="">Libur</option>
       <option value="izin">Izin</option>
       <option value="alfa">Alfa</option>
     </select>
-    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung. Hari biasa: fix 11 jam (biasa = 3,5; biasa + lembur = 23); tanpa centang ikut durasi aktual.</p>
+    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung. Shift default 06:00–17:00, pilih yang lain bila beda supaya lembur ikut roster.</p>
     <button class="reset" id="btnReset">Reset hari ini</button>
   </section>
 
@@ -191,20 +195,20 @@ td.num,th.num{text-align:right}
         <label class="full">Tanggal<input type="date" id="manDate"></label>
         <label>Masuk (aktual)<input type="time" id="manMasuk"></label>
         <label>Keluar (aktual)<input type="time" id="manKeluar"></label>
-        <label class="full">Pola shift (isi roster)<select id="manShift">
-          <option value="">— pilih pola / isi manual —</option>
-          <option value="06:00|17:00">Pagi 06:00–17:00</option>
-          <option value="05:30|18:00">Siang 05:30–18:00</option>
-          <option value="17:30|06:00">Malam 17:30–06:00</option>
-          <option value="06:00|16:30">Pendek 06:00–16:30</option>
-        </select></label>
+      </div>
+      <div class="toggles" id="manShiftBtns">
+        <button class="toggle shift" data-shift="06:00|17:00">06:00–17:00</button>
+        <button class="toggle shift" data-shift="05:30|18:00">05:30–18:00</button>
+        <button class="toggle shift" data-shift="17:30|06:00">17:30–06:00</button>
+        <button class="toggle shift" data-shift="06:00|16:30">06:00–16:30</button>
+      </div>
+      <div class="manual-grid" style="margin-top:8px">
         <label>Roster masuk<input type="time" id="manJadwalMasuk"></label>
         <label>Roster keluar<input type="time" id="manJadwalKeluar"></label>
       </div>
       <div class="toggles">
         <button class="toggle lembur" id="manLembur">Lembur</button>
         <button class="toggle libur" id="manLibur">Libur</button>
-        <button class="toggle biasa" id="manBiasa" style="grid-column:1/-1">Hari biasa (fix 11 jam)</button>
       </div>
       <select class="ket-select" id="manKet" hidden>
         <option value="">Libur</option>
@@ -333,7 +337,6 @@ try { sel = JSON.parse(localStorage.getItem(KEY_SEL)) || {}; } catch (e) { sel =
 const adjMap = () => ({ sel });
 let manLembur = false;
 let manLibur = false;
-let manBiasa = false;
 let manKet = '';
 let viewMonth = todayKey().slice(0, 7);
 let lastDay = todayKey();
@@ -401,10 +404,13 @@ function renderToday() {
   el('btnMasuk').disabled = !!r.masuk || !!r.libur;
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
   el('btnLembur').classList.toggle('active', !!r.lembur);
-  el('btnBiasa').classList.toggle('active', !!r.biasa);
   el('btnLibur').classList.toggle('active', !!r.libur);
   el('ketLibur').hidden = !r.libur;
   el('ketLibur').value = r.ket || '';
+  const shiftVal = (r.jadwalMasuk && r.jadwalKeluar) ? r.jadwalMasuk + '|' + r.jadwalKeluar : '';
+  document.querySelectorAll('#shiftBtns button').forEach(b => {
+    b.classList.toggle('active', b.dataset.shift === shiftVal && !!shiftVal);
+  });
 }
 
 function disiplinBulan(bulan) {
@@ -830,18 +836,26 @@ function importData(parsed) {
   return n;
 }
 
-el('btnMasuk').onclick = () => setRec({ masuk: nowTime() });
+el('btnMasuk').onclick = () => {
+  const r = rec();
+  const patch = { masuk: nowTime() };
+  if (r.jadwalMasuk === undefined && r.jadwalKeluar === undefined) { patch.jadwalMasuk = '06:00'; patch.jadwalKeluar = '17:00'; }
+  setRec(patch);
+};
 el('btnKeluar').onclick = () => setRec({ keluar: nowTime() });
 el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false, ket: null });
-el('btnBiasa').onclick = () => {
-  const r = rec();
-  if (r.biasa) setRec({ biasa: false });
-  else setRec({ biasa: true, libur: false, ket: null });
-};
+document.querySelectorAll('#shiftBtns button').forEach(b => {
+  b.onclick = () => {
+    const r = rec();
+    const cur = (r.jadwalMasuk && r.jadwalKeluar) ? r.jadwalMasuk + '|' + r.jadwalKeluar : '';
+    if (cur === b.dataset.shift) setRec({ jadwalMasuk: null, jadwalKeluar: null });
+    else { const [jm, jk] = b.dataset.shift.split('|'); setRec({ jadwalMasuk: jm, jadwalKeluar: jk }); }
+  };
+});
 el('btnLibur').onclick = () => {
   const r = rec();
   if (r.libur) setRec({ libur: false, ket: null });
-  else setRec({ libur: true, lembur: false, biasa: false, masuk: null, keluar: null, ket: r.ket || null });
+  else setRec({ libur: true, lembur: false, masuk: null, keluar: null, jadwalMasuk: null, jadwalKeluar: null, ket: r.ket || null });
 };
 el('ketLibur').onchange = () => setRec({ ket: el('ketLibur').value || null });
 el('btnReset').onclick = () => {
@@ -866,21 +880,22 @@ el('btnHide').onclick = () => {
 function syncManToggles() {
   el('manLembur').classList.toggle('active', manLembur);
   el('manLibur').classList.toggle('active', manLibur);
-  el('manBiasa').classList.toggle('active', manBiasa);
   el('manKet').hidden = !manLibur;
   el('manKet').value = manKet;
+  const sv = (el('manJadwalMasuk').value && el('manJadwalKeluar').value) ? el('manJadwalMasuk').value + '|' + el('manJadwalKeluar').value : '';
+  document.querySelectorAll('#manShiftBtns button').forEach(b => {
+    b.classList.toggle('active', b.dataset.shift === sv && !!sv);
+  });
 }
 
 function loadManual(k) {
   const r = data[k] || {};
   el('manMasuk').value = r.masuk || '';
   el('manKeluar').value = r.keluar || '';
-  el('manJadwalMasuk').value = r.jadwalMasuk || '';
-  el('manJadwalKeluar').value = r.jadwalKeluar || '';
-  el('manShift').value = '';
+  el('manJadwalMasuk').value = r.jadwalMasuk || (data[k] ? '' : '06:00');
+  el('manJadwalKeluar').value = r.jadwalKeluar || (data[k] ? '' : '17:00');
   manLembur = !!r.lembur;
   manLibur = !!r.libur;
-  manBiasa = !!r.biasa;
   manKet = r.ket || '';
   el('manHapus').hidden = !data[k];
   el('manMsg').textContent = '';
@@ -900,17 +915,25 @@ el('btnManual').onclick = () => openManual('');
 el('manCancel').onclick = () => { el('manualForm').hidden = true; el('btnManual').hidden = false; };
 el('manDate').onchange = () => loadManual(el('manDate').value);
 el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) { manLibur = false; manKet = ''; } syncManToggles(); };
-el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) { manLembur = false; manBiasa = false; } else manKet = ''; syncManToggles(); };
-el('manBiasa').onclick = () => { manBiasa = !manBiasa; if (manBiasa) { manLibur = false; manKet = ''; } syncManToggles(); };
+el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) manLembur = false; else manKet = ''; syncManToggles(); };
 el('manKet').onchange = () => { manKet = el('manKet').value; };
 
-el('manShift').onchange = () => {
-  const v = el('manShift').value;
-  if (!v) return;
-  const [jm, jk] = v.split('|');
-  el('manJadwalMasuk').value = jm;
-  el('manJadwalKeluar').value = jk;
-};
+document.querySelectorAll('#manShiftBtns button').forEach(b => {
+  b.onclick = () => {
+    const jm = el('manJadwalMasuk').value, jk = el('manJadwalKeluar').value;
+    if (jm + '|' + jk === b.dataset.shift && jm && jk) {
+      el('manJadwalMasuk').value = '';
+      el('manJadwalKeluar').value = '';
+    } else {
+      const [a, c] = b.dataset.shift.split('|');
+      el('manJadwalMasuk').value = a;
+      el('manJadwalKeluar').value = c;
+    }
+    syncManToggles();
+  };
+});
+el('manJadwalMasuk').onchange = syncManToggles;
+el('manJadwalKeluar').onchange = syncManToggles;
 el('manSave').onclick = () => {
   const k = el('manDate').value;
   if (!k) { el('manMsg').textContent = 'Pilih tanggal dulu.'; return; }
@@ -919,8 +942,8 @@ el('manSave').onclick = () => {
   if (keluar && !masuk) { el('manMsg').textContent = 'Jam keluar tidak bisa diisi tanpa jam masuk.'; return; }
   if (!masuk && !manLembur && !manLibur) { el('manMsg').textContent = 'Isi jam masuk, atau tandai Lembur/Libur.'; return; }
   viewMonth = k.slice(0, 7);
-  if (manLibur) saveRec(k, { masuk: null, keluar: null, lembur: false, libur: true, biasa: false, jadwalMasuk: null, jadwalKeluar: null, ket: manKet || null });
-  else saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: false, biasa: manBiasa, jadwalMasuk: el('manJadwalMasuk').value || null, jadwalKeluar: el('manJadwalKeluar').value || null, ket: null });
+  if (manLibur) saveRec(k, { masuk: null, keluar: null, lembur: false, libur: true, jadwalMasuk: null, jadwalKeluar: null, ket: manKet || null });
+  else saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: false, jadwalMasuk: el('manJadwalMasuk').value || null, jadwalKeluar: el('manJadwalKeluar').value || null, ket: null });
   loadManual(k);
   el('manMsg').textContent = 'Tersimpan.';
 };

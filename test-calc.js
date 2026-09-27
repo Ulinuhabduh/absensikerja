@@ -42,13 +42,6 @@ assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '18:00', lembur: true
 assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', lembur: true, libur: true }, '12'), 0);
 assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '07:00', lembur: true }, '12'), 0);
 
-// Centang hari biasa = fix 3,5 jam apa pun durasinya; lembur/libur mengalahkan centang
-assert.strictEqual(jamLemburHari({ masuk: '05:30', keluar: '18:00', biasa: true }, '12'), 3.5);
-assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', biasa: true }, '12'), 3.5);
-assert.strictEqual(jamLemburHari({ masuk: '05:30', keluar: '18:00', lembur: true, biasa: true }, '12'), 23);
-assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', lembur: true, biasa: true }, '12'), 23);
-assert.strictEqual(jamLemburHari({ libur: true, biasa: true }, '12'), 0);
-
 // Pecahan selain .5 dibulatkan ke 0,5 terdekat (16-Mar: 4,53 -> 4,5)
 assert.strictEqual(jamLemburHari({ masuk: '17:30', keluar: '05:01' }, '12'), 4.5);
 assert.strictEqual(jamLemburHari({ masuk: '05:50', keluar: '17:42', lembur: true }, '12'), 26.5);
@@ -71,8 +64,6 @@ assert.strictEqual(infoDisiplin({ libur: true }), null);
 // Sanitasi data import
 assert.deepStrictEqual(bersihkanRekaman({ masuk: '6:00', keluar: '17:00:00', lembur: 1 }),
   { masuk: '06:00', keluar: '17:00', lembur: true });
-assert.deepStrictEqual(bersihkanRekaman({ masuk: '06:00', keluar: '17:00', biasa: 1 }),
-  { masuk: '06:00', keluar: '17:00', biasa: true });
 assert.deepStrictEqual(bersihkanRekaman({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '6:00' }),
   { masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '06:00' });
 assert.deepStrictEqual(bersihkanRekaman({ masuk: 'abc', keluar: null, libur: true }), { libur: true });
@@ -90,7 +81,7 @@ assert.strictEqual(keterangan({ libur: true }), 'Libur');
 assert.strictEqual(keterangan({ libur: true, ket: 'izin' }), 'Izin');
 assert.strictEqual(keterangan({ libur: true, ket: 'alfa' }), 'Alfa');
 
-// Upah harian = pokok/21 + uang lembur dinamis (biasa & full lembur sama)
+// Upah harian = pokok/21 + uang lembur dinamis (hari kerja & full lembur sama)
 const HARIAN = GAJI_POKOK / 21;
 assert.strictEqual(upahPerJam(GAJI_POKOK), rate);
 assert.ok(Math.abs(pendapatanHari({ masuk: '06:00', keluar: '17:00' }, GAJI_POKOK, '12') - (HARIAN + 3.5 * rate)) < 1e-9);
