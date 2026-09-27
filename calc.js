@@ -1,18 +1,9 @@
 const PEMBAGI_JAM = 173;
 const JAM_KERJA_SEHARI = 8;
-const AKHIR_KERJA_NORMAL = '14:00';
 // Pembagi potongan absensi: 1 hari alfa = gaji pokok / 21
 const PEMBAGI_POTONGAN = 21;
-
-// Mode jam kerja: istirahat dipotong dari jam kehadiran, lembur = jam lembur hari biasa
-const MODE_JAM = {
-  '12': { istirahat: 1, lembur: 3 },
-  '11': { istirahat: 1, lembur: 2 },
-};
-
-function modeCfg(mode) {
-  return MODE_JAM[mode] || MODE_JAM['12'];
-}
+// Toleransi keterlambatan (menit); di bawah ini dianggap tepat waktu.
+const TOLERANSI_MENIT = 5;
 
 function toMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -36,29 +27,52 @@ function jamLemburPenuh(jam) {
   return 19 + 4 * (jam - 9);
 }
 
-// Dinamis per hari dari durasi aktual yang diinput (roster atau finger,
-// terserah user). Istirahat selalu 1 jam; shift malam (keluar < masuk)
-// dianggap lewat tengah malam. Param mode diabaikan (kompatibel lama).
+// Lembur ikut roster bila lengkap, kalau tidak ikut jam aktual yang diinput
+// (kehadiran tetap wajib ada finger). Istirahat selalu 1 jam; shift malam
+// (keluar < masuk) dianggap lewat tengah malam. Param mode diabaikan.
 // Hari biasa: OT = durasi - 8; hari Lembur: seluruh durasi kerja.
+// Hasil akhir kelipatan 0,5 (4,53 -> 4,5).
+const bulatSetengah = j => Math.round(j * 2) / 2;
+
+// Durasi kerja = selisih jam − 1 jam istirahat.
+function durasiKerja(masuk, keluar) {
+  let menit = toMinutes(keluar) - toMinutes(masuk);
+  if (menit < 0) menit += 24 * 60;
+  if (menit <= 0) return 0;
+  return menit / 60 - 1;
+}
+
+// Jam acuan: roster bila lengkap, kalau tidak jam aktual yang diinput.
+function jamAcuan(rec) {
+  if (rec.jadwalMasuk && rec.jadwalKeluar) return [rec.jadwalMasuk, rec.jadwalKeluar];
+  return [rec.masuk, rec.keluar];
+}
 function jamLemburHari(rec, mode) {
   if (!rec || rec.libur || !rec.masuk || !rec.keluar) return 0;
   if (rec.lembur) {
     // ponytail: full lembur + centang biasa = fix 11 jam -> kerja 10 jam -> 23
     if (rec.biasa) return 23;
-    let menit = toMinutes(rec.keluar) - toMinutes(rec.masuk);
-    if (menit < 0) menit += 24 * 60;
-    if (menit <= 0) return 0;
-    const kerja = menit / 60 - 1;
-    return kerja > 0 ? jamLemburPenuh(kerja) : 0;
+    const kerja = durasiKerja(...jamAcuan(rec));
+    return kerja > 0 ? bulatSetengah(jamLemburPenuh(kerja)) : 0;
   }
   // ponytail: centang hari biasa = fix 11 jam (8 + 1 + 2) -> 3,5; tanpa centang = dinamis
   if (rec.biasa) return 3.5;
-  let menit = toMinutes(rec.keluar) - toMinutes(rec.masuk);
-  if (menit < 0) menit += 24 * 60;
-  if (menit <= 0) return 0;
-  const kerja = menit / 60 - 1;
+  const kerja = durasiKerja(...jamAcuan(rec));
   if (kerja <= 0) return 0;
-  return jamLemburNormal(kerja - JAM_KERJA_SEHARI);
+  return bulatSetengah(jamLemburNormal(kerja - JAM_KERJA_SEHARI));
+}
+
+// Info disiplin vs roster (menit). Hanya tampil; tidak memotong gaji.
+// { telat, awal } dalam menit, 0 bila dalam toleransi.
+function infoDisiplin(rec) {
+  if (!rec || rec.libur || !rec.masuk || !rec.keluar || !rec.jadwalMasuk || !rec.jadwalKeluar) return null;
+  const telat = toMinutes(rec.masuk) - toMinutes(rec.jadwalMasuk);
+  const awal = toMinutes(rec.jadwalKeluar) - toMinutes(rec.keluar);
+  const o = {
+    telat: telat > TOLERANSI_MENIT ? telat : 0,
+    awal: awal > TOLERANSI_MENIT ? awal : 0,
+  };
+  return (o.telat || o.awal) ? o : null;
 }
 
 // Validasi rekaman dari file import: hanya terima bentuk yang dikenal
@@ -71,6 +85,10 @@ function bersihkanRekaman(r) {
   if (keluar) out.keluar = keluar[1].padStart(2, '0') + ':' + keluar[2];
   if (r.lembur) out.lembur = true;
   if (r.biasa) out.biasa = true;
+  const jm = String(r.jadwalMasuk == null ? '' : r.jadwalMasuk).match(/^(\d{1,2}):(\d{2})/);
+  const jk = String(r.jadwalKeluar == null ? '' : r.jadwalKeluar).match(/^(\d{1,2}):(\d{2})/);
+  if (jm) out.jadwalMasuk = jm[1].padStart(2, '0') + ':' + jm[2];
+  if (jk) out.jadwalKeluar = jk[1].padStart(2, '0') + ':' + jk[2];
   if (r.libur) {
     out.libur = true;
     if (r.ket === 'izin' || r.ket === 'alfa') out.ket = r.ket;
@@ -342,5 +360,5 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PEMBAGI_POTONGAN, MODE_JAM, PTKP, TER, jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, kategoriTer, terRate, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, brutoSetahunAktual, pphTerpotongJanNov, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PEMBAGI_POTONGAN, TOLERANSI_MENIT, PTKP, TER, jamLemburNormal, jamLemburPenuh, jamLemburHari, infoDisiplin, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, kategoriTer, terRate, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, brutoSetahunAktual, pphTerpotongJanNov, hitungGaji };
 }

@@ -48,10 +48,6 @@ input:focus{outline:2px solid var(--blue);outline-offset:-1px}
 .month-nav strong{font-size:1rem}
 .month-nav button{border:1px solid var(--line);background:#fff;width:36px;height:36px;border-radius:10px;font-size:1.1rem;cursor:pointer;color:var(--text)}
 .month-nav button:disabled{opacity:.3;cursor:not-allowed}
-.mode{display:flex;flex-direction:column;gap:7px;margin-bottom:14px;padding:11px 13px;background:var(--bg);border-radius:12px}
-.mode>span{font-size:.64rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
-.mode label{display:flex;align-items:center;font-size:.82rem;cursor:pointer}
-.mode input[type=radio]{width:auto;margin:0 8px 0 0;padding:0;accent-color:var(--blue)}
 table{width:100%;border-collapse:collapse;font-size:.78rem}
 .table-wrap{overflow-x:auto;margin:0 -2px}
 th{text-align:left;color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;padding:0 4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -69,6 +65,9 @@ tr.clickable.row-libur:hover td{background:#fecaca}
 .manual-grid label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 .manual-grid label.full{grid-column:1/-1}
 .manual-grid input{margin:4px 0 0}
+.manual-grid select{margin:4px 0 0;width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-size:1rem;font-family:inherit;background:#fff;color:var(--text)}
+.roster{font-size:.62rem;color:var(--muted)}
+.disiplin{font-size:.62rem;color:var(--red);font-weight:700}
 td.num,th.num{text-align:right}
 .empty{text-align:center;color:var(--muted);padding:18px 0}
 .badge{font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap}
@@ -177,10 +176,6 @@ td.num,th.num{text-align:right}
       <strong id="monthLabel"></strong>
       <button id="btnNext" aria-label="Bulan berikutnya">&#8250;</button>
     </div>
-    <div class="mode">
-      <span>Perhitungan dinamis per hari</span>
-      <label style="font-weight:400">Lembur dihitung dari durasi yang diinput (keluar &minus; masuk &minus; 1 jam istirahat).</label>
-    </div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -189,13 +184,22 @@ td.num,th.num{text-align:right}
         <tbody id="monthRows"></tbody>
       </table>
     </div>
-    <p class="hint">Baris kuning = lembur, baris merah = libur.</p>
+    <p class="hint">Baris kuning = lembur, baris merah = libur, teks merah = telat/pulang awal (info saja).</p>
     <button class="outline" id="btnManual">+ Isi / Edit Tanggal Manual</button>
     <div id="manualForm" hidden>
       <div class="manual-grid">
         <label class="full">Tanggal<input type="date" id="manDate"></label>
-        <label>Masuk<input type="time" id="manMasuk"></label>
-        <label>Keluar<input type="time" id="manKeluar"></label>
+        <label>Masuk (aktual)<input type="time" id="manMasuk"></label>
+        <label>Keluar (aktual)<input type="time" id="manKeluar"></label>
+        <label class="full">Pola shift (isi roster)<select id="manShift">
+          <option value="">— pilih pola / isi manual —</option>
+          <option value="06:00|17:00">Pagi 06:00–17:00</option>
+          <option value="05:30|18:00">Siang 05:30–18:00</option>
+          <option value="17:30|06:00">Malam 17:30–06:00</option>
+          <option value="06:00|16:30">Pendek 06:00–16:30</option>
+        </select></label>
+        <label>Roster masuk<input type="time" id="manJadwalMasuk"></label>
+        <label>Roster keluar<input type="time" id="manJadwalKeluar"></label>
       </div>
       <div class="toggles">
         <button class="toggle lembur" id="manLembur">Lembur</button>
@@ -403,6 +407,16 @@ function renderToday() {
   el('ketLibur').value = r.ket || '';
 }
 
+function disiplinBulan(bulan) {
+  let telat = 0, awal = 0;
+  for (const [k, r] of Object.entries(data)) {
+    if (!k.startsWith(bulan)) continue;
+    const d = infoDisiplin(r);
+    if (d) { if (d.telat) telat++; if (d.awal) awal++; }
+  }
+  return { telat, awal };
+}
+
 function renderMonth() {
   const [y, m] = viewMonth.split('-').map(Number);
   el('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
@@ -416,9 +430,22 @@ function renderMonth() {
   for (const row of rows) {
     const r = row.rec;
     const label = new Date(row.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-    const jam = r.libur ? '-' : tersembunyi && (r.masuk || r.keluar)
-      ? '***'
-      : (r.masuk || '--:--') + ' – ' + (r.keluar || '--:--');
+    let jam = '-';
+    if (!r.libur) {
+      if (tersembunyi && (r.masuk || r.keluar)) jam = '***';
+      else {
+        jam = (r.masuk || '--:--') + ' – ' + (r.keluar || '--:--');
+        if (r.jadwalMasuk && r.jadwalKeluar && (r.jadwalMasuk !== r.masuk || r.jadwalKeluar !== r.keluar))
+          jam += '<br><span class="roster">R ' + r.jadwalMasuk + '–' + r.jadwalKeluar + '</span>';
+        const dd = infoDisiplin(r);
+        if (dd) {
+          const kk = [];
+          if (dd.telat) kk.push('Telat ' + dd.telat + ' mnt');
+          if (dd.awal) kk.push('Pulang awal ' + dd.awal + ' mnt');
+          jam += '<br><span class="disiplin">' + kk.join(' · ') + '</span>';
+        }
+      }
+    }
     const tr = document.createElement('tr');
     tr.className = 'clickable' + (r.libur ? ' row-libur' : (r.lembur ? ' row-lembur' : ''));
     tr.onclick = () => openManual(row.tanggal);
@@ -478,7 +505,9 @@ function renderMonth() {
     note.hidden = true;
   }
   el('sumBersih').textContent = rahasia(rupiah(g.bersih));
-  el('sumHari').textContent = g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur (' + g.hariAlfa + ' alfa)';
+  const dd = disiplinBulan(viewMonth);
+  el('sumHari').textContent = g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur (' + g.hariAlfa + ' alfa)'
+    + ((dd.telat || dd.awal) ? ' · ' + dd.telat + ' telat, ' + dd.awal + ' pulang awal' : '');
   el('btnNext').disabled = viewMonth >= todayKey().slice(0, 7);
 }
 
@@ -503,10 +532,12 @@ function renderPrint() {
     const ada = d <= akhir;
     const r = ada ? data[viewMonth + '-' + String(d).padStart(2, '0')] : null;
     const cls = r && r.libur ? ' class="row-libur"' : (r && r.lembur ? ' class="row-lembur"' : '');
+    const dd = r ? infoDisiplin(r) : null;
+    const ketExtra = dd ? ' — ' + (dd.telat ? 'Telat' : '') + (dd.telat && dd.awal ? ' & ' : '') + (dd.awal ? 'Pulang awal' : '') : '';
     rows += '<tr' + cls + '><td class="c">' + (ada ? d : '') + '</td>' +
       '<td class="c">' + (r && r.libur ? '-' : (r && r.masuk ? esc(r.masuk) : '')) + '</td>' +
       '<td class="c">' + (r && r.libur ? '-' : (r && r.keluar ? esc(r.keluar) : '')) + '</td>' +
-      '<td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
+      '<td class="c">' + (ada ? esc(keterangan(r)) + ketExtra : '') + '</td></tr>';
   }
   const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
   const modeLabel = 'dinamis per hari (durasi − 1 jam istirahat)';
@@ -526,7 +557,7 @@ function renderPrint() {
     '<table><colgroup><col style="width:15%"><col style="width:25%"><col style="width:25%"><col style="width:35%"></colgroup>' +
     '<thead><tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Keterangan</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>' +
-    '<div class="p-note">Kuning = lembur, merah = libur.</div>' +
+    '<div class="p-note">Kuning = lembur, merah = libur. Telat/pulang awal hanya info.</div>' +
     '<div class="p-sum">' +
       '<div class="p-sum-title">RINCIAN PERHITUNGAN GAJI</div>' +
       baris('Gaji pokok (acuan, ÷21/hari)', rupiah(g.gajiPokok)) +
@@ -844,6 +875,9 @@ function loadManual(k) {
   const r = data[k] || {};
   el('manMasuk').value = r.masuk || '';
   el('manKeluar').value = r.keluar || '';
+  el('manJadwalMasuk').value = r.jadwalMasuk || '';
+  el('manJadwalKeluar').value = r.jadwalKeluar || '';
+  el('manShift').value = '';
   manLembur = !!r.lembur;
   manLibur = !!r.libur;
   manBiasa = !!r.biasa;
@@ -870,6 +904,13 @@ el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) { manLembur
 el('manBiasa').onclick = () => { manBiasa = !manBiasa; if (manBiasa) { manLibur = false; manKet = ''; } syncManToggles(); };
 el('manKet').onchange = () => { manKet = el('manKet').value; };
 
+el('manShift').onchange = () => {
+  const v = el('manShift').value;
+  if (!v) return;
+  const [jm, jk] = v.split('|');
+  el('manJadwalMasuk').value = jm;
+  el('manJadwalKeluar').value = jk;
+};
 el('manSave').onclick = () => {
   const k = el('manDate').value;
   if (!k) { el('manMsg').textContent = 'Pilih tanggal dulu.'; return; }
@@ -878,8 +919,8 @@ el('manSave').onclick = () => {
   if (keluar && !masuk) { el('manMsg').textContent = 'Jam keluar tidak bisa diisi tanpa jam masuk.'; return; }
   if (!masuk && !manLembur && !manLibur) { el('manMsg').textContent = 'Isi jam masuk, atau tandai Lembur/Libur.'; return; }
   viewMonth = k.slice(0, 7);
-  if (manLibur) saveRec(k, { masuk: null, keluar: null, lembur: false, libur: true, biasa: false, ket: manKet || null });
-  else saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: false, biasa: manBiasa, ket: null });
+  if (manLibur) saveRec(k, { masuk: null, keluar: null, lembur: false, libur: true, biasa: false, jadwalMasuk: null, jadwalKeluar: null, ket: manKet || null });
+  else saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: false, biasa: manBiasa, jadwalMasuk: el('manJadwalMasuk').value || null, jadwalKeluar: el('manJadwalKeluar').value || null, ket: null });
   loadManual(k);
   el('manMsg').textContent = 'Tersimpan.';
 };
@@ -934,15 +975,6 @@ el('selPtkp').onchange = () => {
   renderMonth();
 };
 
-document.querySelectorAll('input[name=mode]').forEach(radio => {
-  radio.checked = radio.value === mode;
-  radio.onchange = () => {
-    mode = radio.value;
-    localStorage.setItem(KEY_MODE, mode);
-    render();
-  };
-});
-
 function loadKaryawan() {
   el('karNama').value = karyawan.nama || '';
   el('karNoid').value = karyawan.noid || '';
@@ -993,7 +1025,6 @@ el('btnUserBaru').onclick = () => {
   tersembunyi = false;
   viewMonth = todayKey().slice(0, 7);
   el('selPtkp').value = ptkp;
-  document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value === mode; });
   el('gajiCard').hidden = false;
   el('gajiInput').value = '';
   el('gajiMsg').textContent = '';
@@ -1026,11 +1057,6 @@ el('importFile').onchange = async () => {
       ptkp = parsed.ptkp;
       localStorage.setItem(KEY_PTKP, ptkp);
       el('selPtkp').value = ptkp;
-    }
-    if (parsed && parsed.istirahat != null) {
-      mode = parsed.mode === '11' || parsed.mode === '12' ? parsed.mode : (Number(parsed.istirahat) ? '11' : '12');
-      localStorage.setItem(KEY_MODE, mode);
-      document.querySelectorAll('input[name=mode]').forEach(radio => { radio.checked = radio.value === mode; });
     }
     if (parsed && parsed.thr && typeof parsed.thr === 'object') {
       thr = {};

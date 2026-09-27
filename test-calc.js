@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { jamLemburNormal, jamLemburPenuh, jamLemburHari, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, ambangPajakSetahun, hitungGaji, TER, kategoriTer, terRate, brutoSetahunAktual } = require('./calc.js');
+const { jamLemburNormal, jamLemburPenuh, jamLemburHari, infoDisiplin, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, pph21Setahun, ambangPajakSetahun, hitungGaji, TER, kategoriTer, terRate, brutoSetahunAktual } = require('./calc.js');
 
 const GAJI_POKOK = 4245927;
 const rate = GAJI_POKOK / 173;
@@ -49,11 +49,32 @@ assert.strictEqual(jamLemburHari({ masuk: '05:30', keluar: '18:00', lembur: true
 assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', lembur: true, biasa: true }, '12'), 23);
 assert.strictEqual(jamLemburHari({ libur: true, biasa: true }, '12'), 0);
 
+// Pecahan selain .5 dibulatkan ke 0,5 terdekat (16-Mar: 4,53 -> 4,5)
+assert.strictEqual(jamLemburHari({ masuk: '17:30', keluar: '05:01' }, '12'), 4.5);
+assert.strictEqual(jamLemburHari({ masuk: '05:50', keluar: '17:42', lembur: true }, '12'), 26.5);
+
+// Roster menang atas aktual (bukti 3 bulan: lembur ikut roster)
+assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }, '12'), 6.5);
+assert.strictEqual(jamLemburHari({ masuk: '05:12', keluar: '18:03', jadwalMasuk: '05:30', jadwalKeluar: '18:00', lembur: true }, '12'), 29);
+// Roster separuh diabaikan -> ikut aktual
+assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30' }, '12'), 5.5);
+// Tanpa aktual (hanya roster) tidak dihitung
+assert.strictEqual(jamLemburHari({ jadwalMasuk: '17:30', jadwalKeluar: '06:00' }, '12'), 0);
+
+// Disiplin vs roster (toleransi 5 menit): info saja, tidak memotong
+assert.deepStrictEqual(infoDisiplin({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }), { telat: 0, awal: 59 });
+assert.deepStrictEqual(infoDisiplin({ masuk: '17:35', keluar: '06:00', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }), null);
+assert.deepStrictEqual(infoDisiplin({ masuk: '17:36', keluar: '06:00', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }), { telat: 6, awal: 0 });
+assert.strictEqual(infoDisiplin({ masuk: '17:30', keluar: '06:00' }), null);
+assert.strictEqual(infoDisiplin({ libur: true }), null);
+
 // Sanitasi data import
 assert.deepStrictEqual(bersihkanRekaman({ masuk: '6:00', keluar: '17:00:00', lembur: 1 }),
   { masuk: '06:00', keluar: '17:00', lembur: true });
 assert.deepStrictEqual(bersihkanRekaman({ masuk: '06:00', keluar: '17:00', biasa: 1 }),
   { masuk: '06:00', keluar: '17:00', biasa: true });
+assert.deepStrictEqual(bersihkanRekaman({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '6:00' }),
+  { masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '06:00' });
 assert.deepStrictEqual(bersihkanRekaman({ masuk: 'abc', keluar: null, libur: true }), { libur: true });
 assert.strictEqual(bersihkanRekaman(null), null);
 assert.strictEqual(bersihkanRekaman('2026-09-01'), null);
