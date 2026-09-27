@@ -188,7 +188,7 @@ td.num,th.num{text-align:right}
         <tbody id="monthRows"></tbody>
       </table>
     </div>
-    <p class="hint">Baris kuning = lembur, baris merah = libur, teks merah = telat/pulang awal (info saja).</p>
+    <p class="hint">Baris kuning = lembur, baris merah = libur, teks merah = telat/pulang awal (hari normal pulang awal = fix 3,5).</p>
     <button class="outline" id="btnManual">+ Isi / Edit Tanggal Manual</button>
     <div id="manualForm" hidden>
       <div class="manual-grid">
@@ -543,6 +543,7 @@ function renderPrint() {
     rows += '<tr' + cls + '><td class="c">' + (ada ? d : '') + '</td>' +
       '<td class="c">' + (r && r.libur ? '-' : (r && r.masuk ? esc(r.masuk) : '')) + '</td>' +
       '<td class="c">' + (r && r.libur ? '-' : (r && r.keluar ? esc(r.keluar) : '')) + '</td>' +
+      '<td class="c">' + (r && r.libur ? '-' : (r && r.jadwalMasuk && r.jadwalKeluar ? esc(r.jadwalMasuk) + '–' + esc(r.jadwalKeluar) : '')) + '</td>' +
       '<td class="c">' + (ada ? esc(keterangan(r)) + ketExtra : '') + '</td></tr>';
   }
   const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
@@ -560,8 +561,8 @@ function renderPrint() {
       '<div><span>Departemen</span>: <b>' + esc(karyawan.dept) + '</b></div>' +
       '<div><span>Periode</span>: <b>' + periode + '</b></div>' +
     '</div>' +
-    '<table><colgroup><col style="width:15%"><col style="width:25%"><col style="width:25%"><col style="width:35%"></colgroup>' +
-    '<thead><tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Keterangan</th></tr></thead>' +
+    '<table><colgroup><col style="width:12%"><col style="width:20%"><col style="width:20%"><col style="width:18%"><col style="width:30%"></colgroup>' +
+    '<thead><tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Roster</th><th>Keterangan</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>' +
     '<div class="p-note">Kuning = lembur, merah = libur. Telat/pulang awal hanya info.</div>' +
     '<div class="p-sum">' +

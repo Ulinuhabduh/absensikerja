@@ -55,6 +55,9 @@ function jamLemburHari(rec, mode) {
   }
   const kerja = durasiKerja(...jamAcuan(rec));
   if (kerja <= 0) return 0;
+  // ponytail: pulang awal di hari normal -> kelebihan jam tak diakui, fix 3,5 (coba dari slip Mar 2026)
+  const dd = infoDisiplin(rec);
+  if (dd && dd.awal) return 3.5;
   return bulatSetengah(jamLemburNormal(kerja - JAM_KERJA_SEHARI));
 }
 

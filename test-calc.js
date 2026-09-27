@@ -46,8 +46,10 @@ assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '07:00', lembur: true
 assert.strictEqual(jamLemburHari({ masuk: '17:30', keluar: '05:01' }, '12'), 4.5);
 assert.strictEqual(jamLemburHari({ masuk: '05:50', keluar: '17:42', lembur: true }, '12'), 26.5);
 
-// Roster menang atas aktual (bukti 3 bulan: lembur ikut roster)
-assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }, '12'), 6.5);
+// Pulang awal di hari normal -> fix 3,5; full-lembur tidak ikut
+assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }, '12'), 3.5);
+assert.strictEqual(jamLemburHari({ masuk: '17:12', keluar: '05:24', jadwalMasuk: '17:30', jadwalKeluar: '06:00', lembur: true }, '12'), 29);
+assert.strictEqual(jamLemburHari({ masuk: '17:29', keluar: '06:00', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }, '12'), 6.5);
 assert.strictEqual(jamLemburHari({ masuk: '05:12', keluar: '18:03', jadwalMasuk: '05:30', jadwalKeluar: '18:00', lembur: true }, '12'), 29);
 // Roster separuh diabaikan -> ikut aktual
 assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30' }, '12'), 5.5);
