@@ -167,7 +167,7 @@ td.num,th.num{text-align:right}
       <option value="izin">Izin</option>
       <option value="alfa">Alfa</option>
     </select>
-    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung. Hari biasa: centang bila shift normal 11 jam (8 + 1 + 2) supaya lembur fix 3,5 jam; tanpa centang ikut durasi aktual.</p>
+    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung. Hari biasa: fix 11 jam (biasa = 3,5; biasa + lembur = 23); tanpa centang ikut durasi aktual.</p>
     <button class="reset" id="btnReset">Reset hari ini</button>
   </section>
 
@@ -801,11 +801,11 @@ function importData(parsed) {
 
 el('btnMasuk').onclick = () => setRec({ masuk: nowTime() });
 el('btnKeluar').onclick = () => setRec({ keluar: nowTime() });
-el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false, biasa: false, ket: null });
+el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false, ket: null });
 el('btnBiasa').onclick = () => {
   const r = rec();
   if (r.biasa) setRec({ biasa: false });
-  else setRec({ biasa: true, lembur: false, libur: false, ket: null });
+  else setRec({ biasa: true, libur: false, ket: null });
 };
 el('btnLibur').onclick = () => {
   const r = rec();
@@ -865,9 +865,9 @@ function openManual(k) {
 el('btnManual').onclick = () => openManual('');
 el('manCancel').onclick = () => { el('manualForm').hidden = true; el('btnManual').hidden = false; };
 el('manDate').onchange = () => loadManual(el('manDate').value);
-el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) { manLibur = false; manKet = ''; manBiasa = false; } syncManToggles(); };
+el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) { manLibur = false; manKet = ''; } syncManToggles(); };
 el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) { manLembur = false; manBiasa = false; } else manKet = ''; syncManToggles(); };
-el('manBiasa').onclick = () => { manBiasa = !manBiasa; if (manBiasa) { manLembur = false; manLibur = false; manKet = ''; } syncManToggles(); };
+el('manBiasa').onclick = () => { manBiasa = !manBiasa; if (manBiasa) { manLibur = false; manKet = ''; } syncManToggles(); };
 el('manKet').onchange = () => { manKet = el('manKet').value; };
 
 el('manSave').onclick = () => {
@@ -879,7 +879,7 @@ el('manSave').onclick = () => {
   if (!masuk && !manLembur && !manLibur) { el('manMsg').textContent = 'Isi jam masuk, atau tandai Lembur/Libur.'; return; }
   viewMonth = k.slice(0, 7);
   if (manLibur) saveRec(k, { masuk: null, keluar: null, lembur: false, libur: true, biasa: false, ket: manKet || null });
-  else saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: false, biasa: manLembur ? false : manBiasa, ket: null });
+  else saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: false, biasa: manBiasa, ket: null });
   loadManual(k);
   el('manMsg').textContent = 'Tersimpan.';
 };

@@ -45,7 +45,8 @@ assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '07:00', lembur: true
 // Centang hari biasa = fix 3,5 jam apa pun durasinya; lembur/libur mengalahkan centang
 assert.strictEqual(jamLemburHari({ masuk: '05:30', keluar: '18:00', biasa: true }, '12'), 3.5);
 assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', biasa: true }, '12'), 3.5);
-assert.strictEqual(jamLemburHari({ masuk: '05:30', keluar: '18:00', lembur: true, biasa: true }, '12'), 29);
+assert.strictEqual(jamLemburHari({ masuk: '05:30', keluar: '18:00', lembur: true, biasa: true }, '12'), 23);
+assert.strictEqual(jamLemburHari({ masuk: '06:00', keluar: '17:00', lembur: true, biasa: true }, '12'), 23);
 assert.strictEqual(jamLemburHari({ libur: true, biasa: true }, '12'), 0);
 
 // Sanitasi data import

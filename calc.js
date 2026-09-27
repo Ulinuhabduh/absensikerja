@@ -43,6 +43,8 @@ function jamLemburPenuh(jam) {
 function jamLemburHari(rec, mode) {
   if (!rec || rec.libur || !rec.masuk || !rec.keluar) return 0;
   if (rec.lembur) {
+    // ponytail: full lembur + centang biasa = fix 11 jam -> kerja 10 jam -> 23
+    if (rec.biasa) return 23;
     let menit = toMinutes(rec.keluar) - toMinutes(rec.masuk);
     if (menit < 0) menit += 24 * 60;
     if (menit <= 0) return 0;
