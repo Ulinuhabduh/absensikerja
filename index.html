@@ -37,6 +37,7 @@ h1{font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--m
 .toggle{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px;font-size:.9rem;font-weight:700;color:var(--muted);cursor:pointer}
 .toggle.active.lembur{background:var(--amber-bg);border-color:#f59e0b;color:var(--amber)}
 .toggle.active.libur{background:var(--slate-bg);border-color:#94a3b8;color:#475569}
+.toggle.active.biasa{background:#e0f2fe;border-color:#0284c7;color:#0369a1}
 .hint{font-size:.75rem;color:var(--muted);margin:10px 2px 0;line-height:1.45}
 .mini{background:none;border:0;color:var(--blue);font-size:.72rem;cursor:pointer;text-decoration:underline;padding:0 0 0 2px}
 .summary .row em{font-style:normal;color:var(--muted);font-size:.68rem}
@@ -90,18 +91,19 @@ td.num,th.num{text-align:right}
 .thr-item b{font-variant-numeric:tabular-nums}
 #printArea{display:none;padding:0 8mm}
 #printArea .p-title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.08em;margin:0 0 3mm}
-#printArea .p-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 8mm;font-size:10pt;margin-bottom:3mm;padding-left:2mm}
+#printArea .p-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 8mm;font-size:10pt;margin-bottom:2mm;padding-left:2mm}
 #printArea .p-meta div{display:flex;gap:2mm}
 #printArea .p-meta span{min-width:24mm;color:#333}
 #printArea table{width:100%;border-collapse:collapse;table-layout:fixed}
-#printArea th,#printArea td{border:1px solid #000;height:5.8mm;padding:0 1.5mm;font-size:9pt;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-#printArea th{background:#eee;font-size:8.5pt;text-align:center;text-transform:uppercase}
+#printArea th,#printArea td{border:1px solid #000;height:4.4mm;padding:0 1.5mm;font-size:8.5pt;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+#printArea th{background:#eee;font-size:8pt;text-align:center;text-transform:uppercase}
 #printArea td.c{text-align:center}
+#printArea tr{page-break-inside:avoid}
 #printArea tr.row-lembur td{background:#fef3c7}
 #printArea tr.row-libur td{background:#fee2e2}
-#printArea .p-sum{margin-top:4mm;border:1px solid #000;padding:2mm 3mm}
+#printArea .p-sum{margin-top:2.5mm;border:1px solid #000;padding:1.5mm 2.5mm;page-break-inside:avoid}
 #printArea .p-sum-title{font-size:9pt;font-weight:700;letter-spacing:.05em;margin-bottom:1.5mm}
-#printArea .p-row{display:flex;justify-content:space-between;font-size:8.5pt;line-height:3.8mm}
+#printArea .p-row{display:flex;justify-content:space-between;font-size:8pt;line-height:3.3mm}
 #printArea .p-row.sub{border-top:.3mm solid #999;margin-top:.6mm;padding-top:.6mm;font-weight:700}
 #printArea .p-row.total{border-top:.5mm solid #000;margin-top:.8mm;padding-top:.8mm;font-size:10pt;font-weight:700}
 #printArea .p-note{font-size:7.5pt;color:#333;margin-top:1.5mm}
@@ -120,7 +122,7 @@ td.num,th.num{text-align:right}
 #printArea .pph tr.sub td{font-weight:700;border-top:.5mm solid #000}
 #printArea .pph tr.kepala td{font-weight:700;background:#eee;print-color-adjust:exact;-webkit-print-color-adjust:exact}
 #printArea .pph .kecil{font-size:8pt;color:#333}
-@page{size:A4 portrait;margin:10mm 12mm}
+@page{size:A4 portrait;margin:8mm 10mm}
 @media print{
   body{background:#fff}
   main{display:none}
@@ -149,7 +151,7 @@ td.num,th.num{text-align:right}
       <div class="time"><span>Masuk</span><strong id="masukTime">--:--</strong></div>
       <div class="time"><span>Keluar</span><strong id="keluarTime">--:--</strong></div>
       <div class="time"><span>Lembur</span><strong id="todayOt">0</strong></div>
-      <div class="time"><span>Lembur Rp</span><strong id="todayPay">0</strong></div>
+      <div class="time"><span>Upah</span><strong id="todayPay">0</strong></div>
     </div>
     <div class="actions">
       <button class="btn masuk" id="btnMasuk">Masuk</button>
@@ -158,13 +160,14 @@ td.num,th.num{text-align:right}
     <div class="toggles">
       <button class="toggle lembur" id="btnLembur">Lembur</button>
       <button class="toggle libur" id="btnLibur">Libur</button>
+      <button class="toggle biasa" id="btnBiasa" style="grid-column:1/-1">Hari biasa (fix 11 jam)</button>
     </div>
     <select class="ket-select" id="ketLibur" hidden>
       <option value="">Libur</option>
       <option value="izin">Izin</option>
       <option value="alfa">Alfa</option>
     </select>
-    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung.</p>
+    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung. Hari biasa: centang bila shift normal 11 jam (8 + 1 + 2) supaya lembur fix 3,5 jam; tanpa centang ikut durasi aktual.</p>
     <button class="reset" id="btnReset">Reset hari ini</button>
   </section>
 
@@ -175,14 +178,13 @@ td.num,th.num{text-align:right}
       <button id="btnNext" aria-label="Bulan berikutnya">&#8250;</button>
     </div>
     <div class="mode">
-      <span>Mode Jam Kerja</span>
-      <label><input type="radio" name="mode" value="12"> 12 jam (8 kerja + 1 istirahat + 3 lembur)</label>
-      <label><input type="radio" name="mode" value="11"> 11 jam (8 kerja + 1 istirahat + 2 lembur)</label>
+      <span>Perhitungan dinamis per hari</span>
+      <label style="font-weight:400">Lembur dihitung dari durasi yang diinput (keluar &minus; masuk &minus; 1 jam istirahat).</label>
     </div>
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Tanggal</th><th>Jam</th><th class="num">Lembur</th><th class="num">Lembur Rp</th><th class="num">Akm Lembur</th><th></th></tr>
+          <tr><th>Tanggal</th><th>Jam</th><th class="num">Lembur</th><th class="num">Upah Rp</th><th class="num">Akumulasi</th><th></th></tr>
         </thead>
         <tbody id="monthRows"></tbody>
       </table>
@@ -198,6 +200,7 @@ td.num,th.num{text-align:right}
       <div class="toggles">
         <button class="toggle lembur" id="manLembur">Lembur</button>
         <button class="toggle libur" id="manLibur">Libur</button>
+        <button class="toggle biasa" id="manBiasa" style="grid-column:1/-1">Hari biasa (fix 11 jam)</button>
       </div>
       <select class="ket-select" id="manKet" hidden>
         <option value="">Libur</option>
@@ -212,18 +215,19 @@ td.num,th.num{text-align:right}
       <p class="hint" id="manMsg"></p>
     </div>
     <div class="summary">
-      <div class="row"><span>Gaji pokok (acuan, dibayar penuh)<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
+      <div class="row"><span>Gaji pokok (acuan, &divide;21 per hari)<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
       <div class="row"><span>Upah per jam</span><strong id="sumRate">Rp0</strong></div>
+      <div class="row"><span>Gaji harian (<span id="sumHarianKet">0 hari</span>, maks pokok)</span><strong id="sumHarian">Rp0</strong></div>
       <div class="row"><span>Uang lembur (<span id="sumJam">0 jam</span>)</span><strong id="sumUang">Rp0</strong></div>
-      <div class="row pot"><span>Potongan alfa (<span id="sumAlfaKet">0 hari</span> &times; pokok/21)</span><strong id="sumPot">-Rp0</strong></div>
+      <div class="row pot" id="sumPotRow"><span>Potongan manual</span><strong id="sumPot">-Rp0</strong></div>
       <div class="manual-grid">
         <label class="full">Selisih / koreksi bulan ini (Rp, negatif bila pengurang)<input type="text" id="selInput" inputmode="numeric" placeholder="0"></label>
       </div>
       <p class="hint" id="sumLiburInfo"></p>
-      <div class="row"><span>Gaji kotor (pokok - potongan)</span><strong id="sumKotor">Rp0</strong></div>
+      <div class="row"><span>Gaji kotor (harian - potongan)</span><strong id="sumKotor">Rp0</strong></div>
       <div class="row" id="sumSelRow" hidden><span>Selisih / koreksi</span><strong id="sumSel">Rp0</strong></div>
-      <div class="row"><span>Bruto (kotor + lembur + selisih)</span><strong id="sumBruto">Rp0</strong></div>
-      <div class="row" id="sumThrRow" hidden><span>THR / Bonus</span><strong id="sumThr">+Rp0</strong></div>
+      <div class="row"><span>Bruto (kotor + lembur + selisih + THR)</span><strong id="sumBruto">Rp0</strong></div>
+      <div class="row" id="sumThrRow" hidden><span>THR / Bonus (masuk bruto)</span><strong id="sumThr">+Rp0</strong></div>
       <div class="row"><span>Status PTKP</span>
         <select id="selPtkp">
           <option value="TK/0">TK/0</option>
@@ -239,11 +243,10 @@ td.num,th.num{text-align:right}
       <div class="row pot"><span>BPJS Ketenagakerjaan 3%</span><strong id="sumBpjsTk">-Rp0</strong></div>
       <div class="row pot"><span>BPJS Kesehatan 1%</span><strong id="sumBpjsKes">-Rp0</strong></div>
       <div class="row pot"><span>PPh 21 <em id="sumPphInfo"></em><button class="mini" id="btnPph">penjelasan</button><button class="mini" id="btnPphData">perhitungan pph21</button></span><strong id="sumPph">-Rp0</strong></div>
-      <div class="row pot" id="sumPphThrRow" hidden><span>PPh 21 atas THR</span><strong id="sumPphThr">-Rp0</strong></div>
       <p class="pph-note" id="sumPphNote" hidden></p>
       <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
       <div class="days" id="sumHari"></div>
-      <p class="hint">Gaji pokok dibayar penuh setiap bulan seperti slip perusahaan. Kolom Lembur Rp/Akm Lembur = upah lembur hari itu (bagian lembur saja). Potongan BPJS dari gaji pokok acuan; PPh 21 memakai bruto kotor + lembur + selisih.</p>
+      <p class="hint">Tiap hari masuk (biasa maupun full lembur) = pokok/21 + uang lembur dari durasi hari itu, akumulasi pokok dibatasi maksimal gaji pokok — selebihnya hanya lembur yang nambah. Libur/izin/alfa = Rp0. Kolom Upah/Akumulasi = upah hari itu dan total berjalan. BPJS dari pokok acuan; PPh dari bruto.</p>
     </div>
     <button class="btn keluar" id="btnPdf" style="width:100%;margin-top:16px">Download PDF Bulan Ini</button>
     <p class="hint">Terbuka dialog print &mdash; pilih "Save as PDF". Hasilnya 1 halaman A4, 31 baris tanggal.</p>
@@ -258,7 +261,7 @@ td.num,th.num{text-align:right}
     <button class="btn masuk" id="btnThr" style="width:100%">Simpan</button>
     <div id="thrList"></div>
     <p class="hint" id="thrMsg"></p>
-    <p class="hint">THR/bonus tidak ikut tarif bulanan. PPh-nya dihitung dari selisih PPh setahun (teratur + THR) dengan PPh setahun teratur saja, lalu dipotong penuh di bulan itu. Isi nominal 0 untuk menghapus.</p>
+    <p class="hint">THR/bonus digabung ke bruto bulan itu, PPh-nya ikut tarif bruto gabungan. Isi nominal 0 untuk menghapus.</p>
   </section>
 
   <section class="card">
@@ -326,6 +329,7 @@ try { sel = JSON.parse(localStorage.getItem(KEY_SEL)) || {}; } catch (e) { sel =
 const adjMap = () => ({ sel });
 let manLembur = false;
 let manLibur = false;
+let manBiasa = false;
 let manKet = '';
 let viewMonth = todayKey().slice(0, 7);
 let lastDay = todayKey();
@@ -386,13 +390,14 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 function renderToday() {
   const r = rec();
   el('todayDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  el('masukTime').textContent = r.masuk ? rahasia(r.masuk) : '--:--';
-  el('keluarTime').textContent = r.keluar ? rahasia(r.keluar) : '--:--';
+  el('masukTime').textContent = r.libur ? '-' : (r.masuk ? rahasia(r.masuk) : '--:--');
+  el('keluarTime').textContent = r.libur ? '-' : (r.keluar ? rahasia(r.keluar) : '--:--');
   el('todayOt').textContent = rahasia(angka(jamLemburHari(r, mode)));
   el('todayPay').textContent = rahasia(rupiahRingkas(pendapatanHari(r, gajiPokok, mode)));
   el('btnMasuk').disabled = !!r.masuk || !!r.libur;
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
   el('btnLembur').classList.toggle('active', !!r.lembur);
+  el('btnBiasa').classList.toggle('active', !!r.biasa);
   el('btnLibur').classList.toggle('active', !!r.libur);
   el('ketLibur').hidden = !r.libur;
   el('ketLibur').value = r.ket || '';
@@ -411,7 +416,7 @@ function renderMonth() {
   for (const row of rows) {
     const r = row.rec;
     const label = new Date(row.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-    const jam = tersembunyi && (r.masuk || r.keluar)
+    const jam = r.libur ? '-' : tersembunyi && (r.masuk || r.keluar)
       ? '***'
       : (r.masuk || '--:--') + ' – ' + (r.keluar || '--:--');
     const tr = document.createElement('tr');
@@ -430,11 +435,13 @@ function renderMonth() {
   el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
   el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
   el('sumUang').textContent = rahasia(rupiah(g.uangLembur));
+  el('sumHarian').textContent = rahasia(rupiah(g.gajiHarian));
+  el('sumHarianKet').textContent = (g.hariKerja + g.hariLembur) + ' hari';
+  el('sumPotRow').hidden = !(g.potonganAbsensi !== 0);
   el('sumPot').textContent = rahasia('-' + rupiah(g.potonganAbsensi));
-  el('sumAlfaKet').textContent = g.hariAlfa + ' hari';
   if (document.activeElement !== el('selInput')) el('selInput').value = g.selisih ? formatRibuan(String(g.selisih)) : '';
   el('sumLiburInfo').textContent = g.hariLibur
-    ? g.hariLibur + ' hari libur (' + g.hariAlfa + ' alfa, ' + g.hariIzin + ' izin). Alfa di hari kerja memotong pokok/21 per hari; izin ber-surat tidak dipotong.'
+    ? g.hariLibur + ' hari libur (' + g.hariAlfa + ' alfa, ' + g.hariIzin + ' izin). Libur/izin/alfa = Rp0.'
     : '';
   el('sumKotor').textContent = rahasia(rupiah(g.gajiKotor));
   el('sumSelRow').hidden = !(g.selisih !== 0);
@@ -448,8 +455,6 @@ function renderMonth() {
   el('sumPphInfo').textContent = g.metode === 'TER'
     ? 'TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '% · Kategori ' + g.terKategori
     : 'rekonsiliasi Desember';
-  el('sumPphThrRow').hidden = !(g.pphThr > 0);
-  el('sumPphThr').textContent = rahasia('-' + rupiah(g.pphThr));
   const note = el('sumPphNote');
   if (g.metode === 'rekonsiliasi') {
     note.hidden = false;
@@ -499,14 +504,12 @@ function renderPrint() {
     const r = ada ? data[viewMonth + '-' + String(d).padStart(2, '0')] : null;
     const cls = r && r.libur ? ' class="row-libur"' : (r && r.lembur ? ' class="row-lembur"' : '');
     rows += '<tr' + cls + '><td class="c">' + (ada ? d : '') + '</td>' +
-      '<td class="c">' + (r && r.masuk ? esc(r.masuk) : '') + '</td>' +
-      '<td class="c">' + (r && r.keluar ? esc(r.keluar) : '') + '</td>' +
+      '<td class="c">' + (r && r.libur ? '-' : (r && r.masuk ? esc(r.masuk) : '')) + '</td>' +
+      '<td class="c">' + (r && r.libur ? '-' : (r && r.keluar ? esc(r.keluar) : '')) + '</td>' +
       '<td class="c">' + (ada ? esc(keterangan(r)) : '') + '</td></tr>';
   }
   const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
-  const modeLabel = mode === '11'
-    ? '11 jam (8 kerja + 1 istirahat + 2 lembur)'
-    : '12 jam (8 kerja + 1 istirahat + 3 lembur)';
+  const modeLabel = 'dinamis per hari (durasi − 1 jam istirahat)';
   const baris = (label, nilai, cls) => '<div class="p-row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' + nilai + '</b></div>';
   const labelPph = 'PPh 21 ' + (g.metode === 'TER'
     ? '(TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '% Kategori ' + g.terKategori + ')'
@@ -526,18 +529,18 @@ function renderPrint() {
     '<div class="p-note">Kuning = lembur, merah = libur.</div>' +
     '<div class="p-sum">' +
       '<div class="p-sum-title">RINCIAN PERHITUNGAN GAJI</div>' +
-      baris('Gaji pokok (acuan, penuh)', rupiah(g.gajiPokok)) +
+      baris('Gaji pokok (acuan, ÷21/hari)', rupiah(g.gajiPokok)) +
       baris('Upah per jam', rupiah(g.upahPerJam)) +
-      (g.potonganAbsensi ? baris('Potongan alfa (' + g.hariAlfa + ' hari × pokok/21)', '-' + rupiah(g.potonganAbsensi)) : '') +
-      baris('Gaji kotor', rupiah(g.gajiKotor)) +
+      baris('Gaji harian (' + (g.hariKerja + g.hariLembur) + ' hari, maks pokok)', rupiah(g.gajiHarian)) +
+      (g.potonganAbsensi ? baris('Potongan manual', '-' + rupiah(g.potonganAbsensi)) : '') +
+      baris('Gaji kotor (harian - potongan)', rupiah(g.gajiKotor)) +
       baris('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
       (g.selisih !== 0 ? baris('Selisih / koreksi', (g.selisih < 0 ? '-' : '+') + rupiah(Math.abs(g.selisih))) : '') +
+      (g.thr > 0 ? baris('THR / Bonus (masuk bruto)', '+' + rupiah(g.thr)) : '') +
       baris('Bruto', rupiah(g.bruto), 'sub') +
-      (g.thr > 0 ? baris('THR / Bonus', '+' + rupiah(g.thr)) : '') +
       baris('Potongan BPJS Ketenagakerjaan 3%', '-' + rupiah(g.bpjsTk)) +
       baris('Potongan BPJS Kesehatan 1%', '-' + rupiah(g.bpjsKes)) +
       baris(labelPph, '-' + rupiah(g.pphTeratur)) +
-      (g.pphThr > 0 ? baris('PPh 21 atas THR', '-' + rupiah(g.pphThr)) : '') +
       baris('Gaji bersih', rupiah(g.bersih), 'total') +
       '<div class="p-note">' + g.hariKerja + ' hari kerja · ' + g.hariLembur + ' lembur · ' + g.hariLibur + ' libur (' + g.hariAlfa + ' alfa) · Mode: ' + modeLabel + '</div>' +
     '</div>';
@@ -684,25 +687,17 @@ function renderPphData() {
   const periode = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   const bpjsSetahun = g.bpjsTk * 12;
   const ptkpNilai = PTKP[ptkp] || 0;
-  const modeLabel = mode === '11' ? '11 jam (8 kerja + 1 istirahat + 2 lembur)' : '12 jam (8 kerja + 1 istirahat + 3 lembur)';
+  const modeLabel = 'dinamis per hari (durasi − 1 jam istirahat)';
   const tr = (label, nilai, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + label + '</td><td class="r">' + nilai + '</td></tr>';
-  let blokPph, blokThr = '';
+  let blokPph;
   if (g.metode === 'TER') {
     blokPph = '<h2>B. PPh 21 bulan ini (Tarif Efektif / TER)</h2>' +
       '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
         tr('Kategori TER (PTKP ' + esc(ptkp) + ')', 'Kategori ' + g.terKategori) +
-        tr('Penghasilan bruto bulan ini', rupiah(g.bruto)) +
+        tr('Penghasilan bruto bulan ini (incl. THR/bonus)', rupiah(g.bruto)) +
         tr('Tarif efektif (Lampiran PP 58/2023)', (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%') +
         tr('PPh 21 = tarif &times; bruto', rupiah(g.pphTeratur), 'sub') +
       '</table>';
-    if (g.thr > 0) {
-      const teraturSetahun = g.rutin * 12 + g.selisih;
-      blokThr = '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
-        tr('PPh setahun atas (teratur + THR)', rupiah(pph21Setahun(teraturSetahun + g.thr, bpjsSetahun, ptkpNilai))) +
-        tr('PPh setahun atas teratur saja', '&minus;' + rupiah(pph21Setahun(teraturSetahun, bpjsSetahun, ptkpNilai))) +
-        tr('PPh 21 atas THR / bonus', rupiah(g.pphThr), 'sub') +
-        '</table>';
-    }
   } else {
     const brutoSetahun = g.brutoTotalSetahun;
     const biayaJabatan = Math.min(brutoSetahun * 0.05, 6000000);
@@ -736,28 +731,26 @@ function renderPphData() {
 
       '<h2>A. Penghasilan bulan ini</h2>' +
       '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
-        tr('Gaji pokok (acuan, penuh)', rupiah(g.gajiPokok)) +
+        tr('Gaji pokok (acuan, &divide;21/hari)', rupiah(g.gajiPokok)) +
         tr('Upah per jam (pokok &divide; 173)', rupiah(g.upahPerJam)) +
         tr('Hari tercatat', g.hariKerja + ' hari kerja' + (g.hariLembur ? ' + ' + g.hariLembur + ' hari lembur' : '') + (g.hariLibur ? ' + ' + g.hariLibur + ' libur (' + g.hariAlfa + ' alfa)' : '')) +
-        (g.potonganAbsensi ? tr('Potongan alfa (' + g.hariAlfa + ' hari × pokok/21)', '-' + rupiah(g.potonganAbsensi)) : '') +
-        tr('Gaji kotor (pokok &minus; potongan)', rupiah(g.gajiKotor)) +
+        tr('Gaji harian (' + (g.hariKerja + g.hariLembur) + ' hari, maks pokok)', rupiah(g.gajiHarian)) +
+        (g.potonganAbsensi ? tr('Potongan manual', '-' + rupiah(g.potonganAbsensi)) : '') +
+        tr('Gaji kotor (harian &minus; potongan)', rupiah(g.gajiKotor)) +
         tr('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
         (g.selisih !== 0 ? tr('Selisih / koreksi', (g.selisih < 0 ? '-' : '+') + rupiah(Math.abs(g.selisih))) : '') +
-        (g.thr > 0 ? tr('THR / Bonus', rupiah(g.thr)) : '') +
-        tr('Bruto bulan ini', rupiah(g.bruto + g.thr), 'sub') +
+        (g.thr > 0 ? tr('THR / Bonus (masuk bruto)', rupiah(g.thr)) : '') +
+        tr('Bruto bulan ini', rupiah(g.bruto), 'sub') +
       '</table>' +
 
       blokPph +
-      (blokThr ? '<h2>C. PPh 21 atas THR / bonus</h2>' + blokThr : '') +
 
-      '<h2>' + (blokThr ? 'D' : 'C') + '. Total PPh 21 bulan ini</h2>' +
+      '<h2>C. Total PPh 21 bulan ini</h2>' +
       '<table><colgroup><col style="width:60%"><col style="width:40%"></colgroup>' +
-        (g.metode === 'TER' ? tr('PPh 21 atas penghasilan teratur', rupiah(g.pphTeratur)) : '') +
-        (g.metode === 'TER' && g.pphThr > 0 ? tr('PPh 21 atas THR / bonus', rupiah(g.pphThr)) : '') +
         tr('Total PPh 21 bulan ini', rupiah(g.pph), 'sub') +
       '</table>' +
 
-      '<h2>' + (blokThr ? 'E' : 'D') + '. Catatan</h2>' +
+      '<h2>D. Catatan</h2>' +
       '<p class="kecil">' + catatan + '</p>' +
     '</div>';
 }
@@ -808,10 +801,16 @@ function importData(parsed) {
 
 el('btnMasuk').onclick = () => setRec({ masuk: nowTime() });
 el('btnKeluar').onclick = () => setRec({ keluar: nowTime() });
-el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false, ket: null });
+el('btnLembur').onclick = () => setRec({ lembur: !rec().lembur, libur: false, biasa: false, ket: null });
+el('btnBiasa').onclick = () => {
+  const r = rec();
+  if (r.biasa) setRec({ biasa: false });
+  else setRec({ biasa: true, lembur: false, libur: false, ket: null });
+};
 el('btnLibur').onclick = () => {
   const r = rec();
-  setRec({ libur: !r.libur, lembur: false, ket: r.libur ? null : (r.ket || null) });
+  if (r.libur) setRec({ libur: false, ket: null });
+  else setRec({ libur: true, lembur: false, biasa: false, masuk: null, keluar: null, ket: r.ket || null });
 };
 el('ketLibur').onchange = () => setRec({ ket: el('ketLibur').value || null });
 el('btnReset').onclick = () => {
@@ -836,6 +835,7 @@ el('btnHide').onclick = () => {
 function syncManToggles() {
   el('manLembur').classList.toggle('active', manLembur);
   el('manLibur').classList.toggle('active', manLibur);
+  el('manBiasa').classList.toggle('active', manBiasa);
   el('manKet').hidden = !manLibur;
   el('manKet').value = manKet;
 }
@@ -846,6 +846,7 @@ function loadManual(k) {
   el('manKeluar').value = r.keluar || '';
   manLembur = !!r.lembur;
   manLibur = !!r.libur;
+  manBiasa = !!r.biasa;
   manKet = r.ket || '';
   el('manHapus').hidden = !data[k];
   el('manMsg').textContent = '';
@@ -864,8 +865,9 @@ function openManual(k) {
 el('btnManual').onclick = () => openManual('');
 el('manCancel').onclick = () => { el('manualForm').hidden = true; el('btnManual').hidden = false; };
 el('manDate').onchange = () => loadManual(el('manDate').value);
-el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) { manLibur = false; manKet = ''; } syncManToggles(); };
-el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) manLembur = false; else manKet = ''; syncManToggles(); };
+el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) { manLibur = false; manKet = ''; manBiasa = false; } syncManToggles(); };
+el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) { manLembur = false; manBiasa = false; } else manKet = ''; syncManToggles(); };
+el('manBiasa').onclick = () => { manBiasa = !manBiasa; if (manBiasa) { manLembur = false; manLibur = false; manKet = ''; } syncManToggles(); };
 el('manKet').onchange = () => { manKet = el('manKet').value; };
 
 el('manSave').onclick = () => {
@@ -876,7 +878,8 @@ el('manSave').onclick = () => {
   if (keluar && !masuk) { el('manMsg').textContent = 'Jam keluar tidak bisa diisi tanpa jam masuk.'; return; }
   if (!masuk && !manLembur && !manLibur) { el('manMsg').textContent = 'Isi jam masuk, atau tandai Lembur/Libur.'; return; }
   viewMonth = k.slice(0, 7);
-  saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: manLibur, ket: manLibur ? (manKet || null) : null });
+  if (manLibur) saveRec(k, { masuk: null, keluar: null, lembur: false, libur: true, biasa: false, ket: manKet || null });
+  else saveRec(k, { masuk: masuk || null, keluar: keluar || null, lembur: manLembur, libur: false, biasa: manLembur ? false : manBiasa, ket: null });
   loadManual(k);
   el('manMsg').textContent = 'Tersimpan.';
 };
