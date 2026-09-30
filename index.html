@@ -230,7 +230,7 @@ td.num,th.num{text-align:right}
       <div class="row"><span>Upah per jam</span><strong id="sumRate">Rp0</strong></div>
       <div class="row"><span>Gaji harian (<span id="sumHarianKet">0 hari</span>, maks pokok)</span><strong id="sumHarian">Rp0</strong></div>
       <div class="row"><span>Uang lembur (<span id="sumJam">0 jam</span>)</span><strong id="sumUang">Rp0</strong></div>
-      <div class="row pot" id="sumPotRow"><span>Potongan manual</span><strong id="sumPot">-Rp0</strong></div>
+      <div class="row pot" id="sumPotRow"><span id="sumPotLabel">Potongan</span><strong id="sumPot">-Rp0</strong></div>
       <div class="manual-grid">
         <label class="full">Selisih / koreksi bulan ini (Rp, negatif bila pengurang)<input type="text" id="selInput" inputmode="numeric" placeholder="0"></label>
       </div>
@@ -257,7 +257,7 @@ td.num,th.num{text-align:right}
       <p class="pph-note" id="sumPphNote" hidden></p>
       <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
       <div class="days" id="sumHari"></div>
-      <p class="hint">Tiap hari masuk (biasa maupun full lembur) = pokok/21 + uang lembur dari durasi hari itu, akumulasi pokok dibatasi maksimal gaji pokok — selebihnya hanya lembur yang nambah. Libur/izin/alfa = Rp0. Kolom Upah/Akumulasi = upah hari itu dan total berjalan. BPJS dari pokok acuan; PPh dari bruto.</p>
+      <p class="hint">Tiap hari masuk (biasa maupun full lembur) = pokok/21 + uang lembur dari durasi hari itu, akumulasi pokok dibatasi maksimal gaji pokok — selebihnya hanya lembur yang nambah. Alfa memotong pokok/21 per hari; libur/izin = Rp0. Kolom Upah/Akumulasi = upah hari itu dan total berjalan. BPJS dari pokok acuan; PPh dari bruto.</p>
     </div>
     <button class="btn keluar" id="btnPdf" style="width:100%;margin-top:16px">Download PDF Bulan Ini</button>
     <p class="hint">Terbuka dialog print &mdash; pilih "Save as PDF". Hasilnya 1 halaman A4, 31 baris tanggal.</p>
@@ -475,9 +475,11 @@ function renderMonth() {
   el('sumHarianKet').textContent = (g.hariKerja + g.hariLembur) + ' hari';
   el('sumPotRow').hidden = !(g.potonganAbsensi !== 0);
   el('sumPot').textContent = rahasia('-' + rupiah(g.potonganAbsensi));
+  el('sumPotLabel').textContent = 'Potongan alfa (' + g.hariAlfa + ' hari × pokok/21)'
+    + (g.potonganAbsensi - g.potonganAlfa !== 0 ? ' + manual' : '');
   if (document.activeElement !== el('selInput')) el('selInput').value = g.selisih ? formatRibuan(String(g.selisih)) : '';
   el('sumLiburInfo').textContent = g.hariLibur
-    ? g.hariLibur + ' hari libur (' + g.hariAlfa + ' alfa, ' + g.hariIzin + ' izin). Libur/izin/alfa = Rp0.'
+    ? g.hariLibur + ' hari libur (' + g.hariAlfa + ' alfa, ' + g.hariIzin + ' izin). Alfa memotong pokok/21 per hari; libur/izin = Rp0.'
     : '';
   el('sumKotor').textContent = rahasia(rupiah(g.gajiKotor));
   el('sumSelRow').hidden = !(g.selisih !== 0);
@@ -573,7 +575,7 @@ function renderPrint() {
       baris('Gaji pokok (acuan, ÷21/hari)', rupiah(g.gajiPokok)) +
       baris('Upah per jam', rupiah(g.upahPerJam)) +
       baris('Gaji harian (' + (g.hariKerja + g.hariLembur) + ' hari, maks pokok)', rupiah(g.gajiHarian)) +
-      (g.potonganAbsensi ? baris('Potongan manual', '-' + rupiah(g.potonganAbsensi)) : '') +
+      (g.potonganAbsensi ? baris('Potongan alfa (' + g.hariAlfa + ' hari × pokok/21)' + (g.potonganAbsensi - g.potonganAlfa !== 0 ? ' + manual' : ''), '-' + rupiah(g.potonganAbsensi)) : '') +
       baris('Gaji kotor (harian - potongan)', rupiah(g.gajiKotor)) +
       baris('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
       (g.selisih !== 0 ? baris('Selisih / koreksi', (g.selisih < 0 ? '-' : '+') + rupiah(Math.abs(g.selisih))) : '') +
@@ -776,7 +778,7 @@ function renderPphData() {
         tr('Upah per jam (pokok &divide; 173)', rupiah(g.upahPerJam)) +
         tr('Hari tercatat', g.hariKerja + ' hari kerja' + (g.hariLembur ? ' + ' + g.hariLembur + ' hari lembur' : '') + (g.hariLibur ? ' + ' + g.hariLibur + ' libur (' + g.hariAlfa + ' alfa)' : '')) +
         tr('Gaji harian (' + (g.hariKerja + g.hariLembur) + ' hari, maks pokok)', rupiah(g.gajiHarian)) +
-        (g.potonganAbsensi ? tr('Potongan manual', '-' + rupiah(g.potonganAbsensi)) : '') +
+        (g.potonganAbsensi ? tr('Potongan alfa (' + g.hariAlfa + ' hari × pokok/21)' + (g.potonganAbsensi - g.potonganAlfa !== 0 ? ' + manual' : ''), '-' + rupiah(g.potonganAbsensi)) : '') +
         tr('Gaji kotor (harian &minus; potongan)', rupiah(g.gajiKotor)) +
         tr('Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)) +
         (g.selisih !== 0 ? tr('Selisih / koreksi', (g.selisih < 0 ? '-' : '+') + rupiah(Math.abs(g.selisih))) : '') +

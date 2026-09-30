@@ -164,26 +164,37 @@ assert.ok(Math.abs(g11.bruto - g.bruto) < 1e-9);
 assert.strictEqual(g.pph, 0);
 assert.ok(g.kurangSetahun > 0);
 assert.strictEqual(g.ambangSetahun, ambangPajakSetahun(bpjsSetahun, 54000000));
-// Penyesuaian: selisih menggeser bruto dan bersih; alfa/libur = 0 tanpa potongan
+// Penyesuaian: selisih menggeser bruto dan bersih; alfa memotong 1/21
 const dataAdj = {
   '2026-09-01': { masuk: '06:00', keluar: '17:00' },
   '2026-09-02': { libur: true, ket: 'alfa' },
 };
 const gAdj = hitungGaji(dataAdj, '2026-09', GAJI_POKOK, 'TK/0', '12', {}, { sel: { '2026-09': -50000 } });
-assert.strictEqual(gAdj.potonganAbsensi, 0);
+assert.ok(Math.abs(gAdj.potonganAlfa - GAJI_POKOK / 21) < 1e-9);
+assert.ok(Math.abs(gAdj.potonganAbsensi - GAJI_POKOK / 21) < 1e-9);
 assert.strictEqual(gAdj.hariAlfa, 1);
 assert.strictEqual(gAdj.selisih, -50000);
-assert.ok(Math.abs(gAdj.rutin - (GAJI_POKOK / 21 + 3.5 * rate)) < 1e-9);
+assert.strictEqual(Math.round(gAdj.gajiKotor), 0);
+assert.ok(Math.abs(gAdj.rutin - 3.5 * rate) < 1e-9);
 assert.ok(Math.abs(gAdj.bruto - (gAdj.rutin - 50000)) < 1e-9);
 assert.ok(Math.abs(gAdj.bersih - (gAdj.bruto - gAdj.bpjsTk - gAdj.bpjsKes - gAdj.pph)) < 1e-9);
-// Aturan sama berlaku untuk bulan mana pun: alfa tetap 0 potongan
+// Aturan sama berlaku untuk bulan mana pun
 const dataAdjNov = {
   '2026-10-01': { masuk: '06:00', keluar: '17:00' },
   '2026-10-02': { libur: true, ket: 'alfa' },
 };
 const gAdjNov = hitungGaji(dataAdjNov, '2026-10', GAJI_POKOK, 'TK/0', '12', {}, {});
-assert.strictEqual(gAdjNov.potonganAbsensi, 0);
-assert.strictEqual(gAdjNov.potonganAbsensi, gAdj.potonganAbsensi);
+assert.ok(Math.abs(gAdjNov.potonganAbsensi - GAJI_POKOK / 21) < 1e-9);
+assert.ok(Math.abs(gAdjNov.potonganAbsensi - gAdj.potonganAbsensi) < 1e-9);
+
+// Alfa memotong walau akumulasi sudah cap 21 hari: 22 hadir + 1 alfa
+const capAlfa = {};
+for (let i = 1; i <= 22; i++) capAlfa['2026-10-' + String(i).padStart(2, '0')] = { masuk: '06:00', keluar: '17:00' };
+capAlfa['2026-10-23'] = { libur: true, ket: 'alfa' };
+const sCapAlfa = ringkasanBulan(capAlfa, '2026-10', GAJI_POKOK, '12');
+assert.strictEqual(Math.round(sCapAlfa.gajiHarian), GAJI_POKOK);
+assert.ok(Math.abs(sCapAlfa.potonganAbsensi - GAJI_POKOK / 21) < 1e-9);
+assert.ok(Math.abs(sCapAlfa.gajiKotor - (GAJI_POKOK - GAJI_POKOK / 21)) < 1e-9);
 
 // THR/bonus: gabung ke bruto, PPh = TER atas bruto gabungan
 const dataBesar = {};

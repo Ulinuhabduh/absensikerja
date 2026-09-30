@@ -121,8 +121,8 @@ function pendapatanHari(rec, gajiPokok, mode) {
 // tiap hari hadir (biasa maupun full lembur) = pokok/21 + uang lembur,
 // tapi akumulasi bagian pokok dibatasi maksimal gaji pokok;
 // selebihnya penambahan hanya dari uang lembur.
-// libur/izin/alfa = 0 (tanpa potongan otomatis).
-// potonganOverride opsional untuk koreksi manual (dipakai tes).
+// Alfa (libur + ket alfa) memotong 1/21 per hari walau sudah cap;
+// libur/izin biasa = 0. potonganOverride = koreksi manual (dipakai tes).
 function ringkasanBulan(data, bulan, gajiPokok, mode, potonganOverride) {
   let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0, hariAlfa = 0, hariIzin = 0;
   for (const [tgl, rec] of Object.entries(data)) {
@@ -142,13 +142,16 @@ function ringkasanBulan(data, bulan, gajiPokok, mode, potonganOverride) {
   // ponytail: cap O(1) di agregat; progres harian di akumulasiHarian
   const gajiHarian = Math.min((hariKerja + hariLembur) * gajiPokok / PEMBAGI_POTONGAN, gajiPokok);
   const uangLembur = jam * rate;
-  const pot = potonganOverride === undefined ? 0 : Number(potonganOverride) || 0;
-  const gajiKotor = gajiHarian - pot;
+  const potAlfa = hariAlfa * gajiPokok / PEMBAGI_POTONGAN;
+  const potManual = potonganOverride === undefined ? 0 : Number(potonganOverride) || 0;
+  const pot = potAlfa + potManual;
+  const gajiKotor = Math.max(0, gajiHarian - pot);
   return {
     jam, hariKerja, hariLembur, hariLibur, hariAlfa, hariIzin, upahPerJam: rate,
     gajiHarian,
     uangLembur,
     gajiPokok,
+    potonganAlfa: potAlfa,
     potonganAbsensi: pot,
     gajiKotor,
     total: gajiKotor + uangLembur,
