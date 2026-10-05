@@ -1081,7 +1081,7 @@ function unduhPdf(seroja) {
   const bulan = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long' });
   const nama = ((karyawan.nama || '').trim().replace(/\s+/g, ' ') || 'Absensi');
   const judulAsli = document.title;
-  document.title = nama + '_' + bulan + '_' + y + '.pdf';
+  document.title = nama + '_' + bulan + '_' + y;
   if (seroja) renderPrintSeroja(); else renderPrint();
   window.print();
   document.title = judulAsli;
