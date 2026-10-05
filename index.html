@@ -1076,8 +1076,19 @@ el('btnThr').onclick = () => {
   render();
 };
 
-el('btnPdf').onclick = () => { renderPrint(); window.print(); renderPrint(); };
-el('btnPdfSeroja').onclick = () => { renderPrintSeroja(); window.print(); renderPrint(); };
+function unduhPdf(seroja) {
+  const [y, m] = viewMonth.split('-').map(Number);
+  const bulan = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long' });
+  const nama = ((karyawan.nama || '').trim().replace(/\s+/g, ' ') || 'Absensi');
+  const judulAsli = document.title;
+  document.title = nama + '_' + bulan + '_' + y + '.pdf';
+  if (seroja) renderPrintSeroja(); else renderPrint();
+  window.print();
+  document.title = judulAsli;
+  renderPrint();
+}
+el('btnPdf').onclick = () => unduhPdf(false);
+el('btnPdfSeroja').onclick = () => unduhPdf(true);
 el('btnPph').onclick = () => { renderPph(); window.print(); renderPrint(); };
 el('btnPphData').onclick = () => { renderPphData(); window.print(); renderPrint(); };
 
