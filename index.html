@@ -268,6 +268,11 @@ td.num,th.num{text-align:right}
       <button class="btn keluar" id="btnPdf" style="flex:1">PDF Umum</button>
       <button class="btn keluar" id="btnPdfSeroja" style="flex:1">PDF Seroja</button>
     </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btn masuk" id="btnShare" style="flex:1">Bagikan Umum</button>
+      <button class="btn masuk" id="btnShareSeroja" style="flex:1">Bagikan Seroja</button>
+    </div>
+    <p class="hint" id="shareMsg"></p>
     <p class="hint">Terbuka dialog print &mdash; pilih "Save as PDF". Hasilnya 1 halaman A4, 31 baris tanggal.</p>
   </section>
 
@@ -310,6 +315,8 @@ td.num,th.num{text-align:right}
 <div id="printArea"></div>
 
 <script src="calc.js"></script>
+<script src="jspdf.umd.min.js"></script>
+<script src="jspdf-autotable.min.js"></script>
 <script>
 const KEY = 'absensi-harian-v1';
 const KEY_GAJI = 'absensi-harian-gaji';
@@ -1076,19 +1083,197 @@ el('btnThr').onclick = () => {
   render();
 };
 
-function unduhPdf(seroja) {
+function namaFilePdf() {
   const [y, m] = viewMonth.split('-').map(Number);
   const bulan = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long' });
   const nama = ((karyawan.nama || '').trim().replace(/\s+/g, ' ') || 'Absensi');
+  return nama + '_' + bulan + '_' + y + '.pdf';
+}
+function unduhPdf(seroja) {
   const judulAsli = document.title;
-  document.title = nama + '_' + bulan + '_' + y;
+  document.title = namaFilePdf();
   if (seroja) renderPrintSeroja(); else renderPrint();
   window.print();
   document.title = judulAsli;
   renderPrint();
 }
+function muatImg(src) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error('gambar ' + src + ' gagal dimuat'));
+    im.src = src;
+  });
+}
+function ratakanPutih(im) {
+  const c = document.createElement('canvas');
+  c.width = im.naturalWidth || 200;
+  c.height = im.naturalHeight || 100;
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff';
+  x.fillRect(0, 0, c.width, c.height);
+  x.drawImage(im, 0, 0);
+  return c.toDataURL('image/JPEG', 0.92);
+}
+function barisDataAbsensi() {
+  const akhir = new Date(viewMonth.split('-')[0], viewMonth.split('-')[1], 0).getDate();
+  const out = [];
+  for (let d = 1; d <= 31; d++) {
+    const ada = d <= akhir;
+    const r = ada ? data[viewMonth + '-' + String(d).padStart(2, '0')] : null;
+    const dd = r ? infoDisiplin(r) : null;
+    const ketExtra = dd ? ' \u2014 ' + (dd.telat ? 'Telat' : '') + (dd.telat && dd.awal ? ' & ' : '') + (dd.awal ? 'Pulang awal' : '') : '';
+    out.push({
+      sel: [
+        ada ? String(d) : '',
+        r && r.libur ? '-' : (r && r.masuk ? r.masuk : ''),
+        r && r.libur ? '-' : (r && r.keluar ? r.keluar : ''),
+        r && r.libur ? '-' : (r && r.jadwalMasuk && r.jadwalKeluar ? r.jadwalMasuk + '\u2013' + r.jadwalKeluar : ''),
+        ada ? keterangan(r) + ketExtra : ''
+      ],
+      st: !ada || !r ? '' : (r.libur ? 'libur' : (r.lembur ? 'lembur' : ''))
+    });
+  }
+  return out;
+}
+async function buatPdf(seroja) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const [y, m] = viewMonth.split('-').map(Number);
+  const periode = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  let cy = 12;
+  if (seroja) {
+    const logo = await muatImg('Logo-Seroja.jpeg');
+    let lw = 90, lh = lw * logo.naturalHeight / logo.naturalWidth;
+    if (lh > 22) { lh = 22; lw = lh * logo.naturalWidth / logo.naturalHeight; }
+    doc.addImage(logo, 'JPEG', (210 - lw) / 2, cy, lw, lh);
+    cy += lh + 3;
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('ABSENSI HARIAN', 105, cy, { align: 'center' });
+  cy += 6;
+  doc.setFontSize(10);
+  const meta = [['Pekerjaan', karyawan.kerja, 'Nama', karyawan.nama],
+    ['No. ID', karyawan.noid, 'Departemen', karyawan.dept],
+    ['Periode', periode, '', '']];
+  meta.forEach(row => {
+    doc.setFont('helvetica', 'normal');
+    doc.text(row[0] + ' :', 12, cy);
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(row[1] || '-'), 38, cy);
+    if (row[2]) {
+      doc.setFont('helvetica', 'normal');
+      doc.text(row[2] + ' :', 110, cy);
+      doc.setFont('helvetica', 'bold');
+      doc.text(String(row[3] || '-'), 138, cy);
+    }
+    cy += 4.5;
+  });
+  cy += 1;
+  const rows = barisDataAbsensi();
+  doc.autoTable({
+    startY: cy,
+    head: [['Tanggal', 'Jam Masuk', 'Jam Keluar', 'Roster', 'Keterangan']],
+    body: rows.map(x => x.sel),
+    theme: 'grid',
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 0.8, textColor: 0, lineColor: 0, lineWidth: 0.2, halign: 'center', valign: 'middle' },
+    headStyles: { fillColor: [238, 238, 238], textColor: 0, fontStyle: 'bold', fontSize: 8 },
+    columnStyles: { 0: { cellWidth: 16 }, 1: { cellWidth: 38 }, 2: { cellWidth: 38 }, 3: { cellWidth: 34 }, 4: { cellWidth: 64 } },
+    didParseCell: h => {
+      if (h.section !== 'body') return;
+      const st = rows[h.row.index].st;
+      if (st === 'lembur') h.cell.styles.fillColor = [254, 243, 199];
+      else if (st === 'libur') h.cell.styles.fillColor = [254, 226, 226];
+    }
+  });
+  cy = doc.lastAutoTable.finalY + 3;
+  if (!seroja) {
+    const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
+    const labelPph = 'PPh 21 ' + (g.metode === 'TER'
+      ? '(TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%)'
+      : '(Des)');
+    const baris = [
+      ['Gaji pokok (acuan)', rupiah(g.gajiPokok)],
+      ['Upah per jam', rupiah(g.upahPerJam)],
+      ['Gaji harian (' + (g.hariKerja + g.hariLembur) + ' hari)', rupiah(g.gajiHarian)],
+      ['Gaji kotor', rupiah(g.gajiKotor)],
+      ['Uang lembur (' + angka(g.jam) + ' jam)', rupiah(g.uangLembur)],
+      ['Bruto', rupiah(g.bruto)],
+      ['BPJS TK 3%', '-' + rupiah(g.bpjsTk)],
+      ['BPJS Kes 1%', '-' + rupiah(g.bpjsKes)],
+      [labelPph, '-' + rupiah(g.pphTeratur)],
+      ['Gaji bersih', rupiah(g.bersih)]
+    ];
+    if (g.potonganAbsensi) baris.splice(3, 0, ['Potongan alfa (' + g.hariAlfa + ' hari)', '-' + rupiah(g.potonganAbsensi)]);
+    if (g.selisih !== 0) baris.splice(5, 0, ['Selisih / koreksi', rupiah(g.selisih)]);
+    if (g.thr > 0) baris.splice(5, 0, ['THR / Bonus', rupiah(g.thr)]);
+    const hBox = baris.length * 4.6 + 9;
+    doc.setDrawColor(0);
+    doc.rect(10, cy, 190, hBox);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('RINCIAN PERHITUNGAN GAJI', 12, cy + 5);
+    doc.setFontSize(8);
+    baris.forEach((b, i) => {
+      const yy = cy + 10 + i * 4.6;
+      doc.setFont('helvetica', (b[0] === 'Bruto' || b[0] === 'Gaji bersih') ? 'bold' : 'normal');
+      doc.text(b[0], 13, yy);
+      doc.text(b[1], 197, yy, { align: 'right' });
+    });
+  } else {
+    const akhir = new Date(y, m, 0).getDate();
+    const tglAkhir = new Date(y, m - 1, akhir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Mengetahui,', 12, cy + 5);
+    doc.text('Sumberagung, ' + tglAkhir, 12, cy + 11);
+    doc.text('PT Bumi Suksesindo', 48, cy + 17, { align: 'center' });
+    const ttd = await muatImg('TTD-noBg.png');
+    let tw = 45, th = tw * ttd.naturalHeight / ttd.naturalWidth;
+    if (th > 15) { th = 15; tw = th * ttd.naturalWidth / ttd.naturalHeight; }
+    doc.addImage(ratakanPutih(ttd), 'JPEG', 48 - tw / 2, cy + 19, tw, th);
+    const namaTtd = 'M Ulin Nuha Abduh';
+    doc.setFont('helvetica', 'bold');
+    const yNama = cy + 19 + th + 5;
+    doc.text(namaTtd, 48, yNama, { align: 'center' });
+    const lw2 = doc.getTextWidth(namaTtd);
+    doc.setLineWidth(0.3);
+    doc.line(48 - lw2 / 2, yNama + 1, 48 + lw2 / 2, yNama + 1);
+  }
+  return { blob: doc.output('blob'), nama: namaFilePdf() };
+}
+async function bagikanPdf(seroja) {
+  const msg = el('shareMsg');
+  if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+    msg.textContent = 'Library PDF belum termuat \u2014 buka aplikasi sekali saat online, lalu coba lagi.';
+    return;
+  }
+  msg.textContent = 'Membuat PDF\u2026';
+  try {
+    const hasil = await buatPdf(seroja);
+    const file = new File([hasil.blob], hasil.nama, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: hasil.nama });
+      msg.textContent = '';
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(hasil.blob);
+      a.download = hasil.nama;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      msg.textContent = 'Perangkat tidak mendukung share langsung \u2014 file diunduh, kirim manual via WA.';
+    }
+  } catch (e) {
+    msg.textContent = (e && e.name === 'AbortError') ? '' : 'Gagal membuat PDF: ' + (e && e.message ? e.message : e);
+  }
+}
 el('btnPdf').onclick = () => unduhPdf(false);
 el('btnPdfSeroja').onclick = () => unduhPdf(true);
+el('btnShare').onclick = () => bagikanPdf(false);
+el('btnShareSeroja').onclick = () => bagikanPdf(true);
 el('btnPph').onclick = () => { renderPph(); window.print(); renderPrint(); };
 el('btnPphData').onclick = () => { renderPphData(); window.print(); renderPrint(); };
 

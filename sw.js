@@ -1,5 +1,5 @@
 const CACHE = 'absensi-harian-v1'; // nama tetap: update otomatis via network-first + revalidasi, tanpa bump manual
-const ASSETS = ['./', './index.html', './calc.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './calc.js', './jspdf.umd.min.js', './jspdf-autotable.min.js', './Logo-Seroja.jpeg', './TTD-noBg.png', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
