@@ -1233,7 +1233,7 @@ async function buatPdf(seroja) {
     let tw = 45, th = tw * ttd.naturalHeight / ttd.naturalWidth;
     if (th > 15) { th = 15; tw = th * ttd.naturalWidth / ttd.naturalHeight; }
     doc.addImage(ratakanPutih(ttd), 'JPEG', 48 - tw / 2, cy + 19, tw, th);
-    const namaTtd = 'M Ulin Nuha Abduh';
+    const namaTtd = 'Nunung Sulistyorini';
     doc.setFont('helvetica', 'bold');
     const yNama = cy + 19 + th + 5;
     doc.text(namaTtd, 48, yNama, { align: 'center' });
