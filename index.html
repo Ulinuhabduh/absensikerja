@@ -271,10 +271,6 @@ td.num,th.num{text-align:right}
       <p class="hint">Tiap hari masuk (biasa maupun full lembur) = pokok/21 + uang lembur dari durasi hari itu, akumulasi pokok dibatasi maksimal gaji pokok — selebihnya hanya lembur yang nambah. Alfa memotong pokok/21 per hari; libur/izin = Rp0. Kolom Upah/Akumulasi = upah hari itu dan total berjalan. BPJS dari pokok acuan; PPh dari bruto.</p>
     </div>
     <div style="display:flex;gap:10px;margin-top:16px">
-      <button class="btn keluar" id="btnPdf" style="flex:1">PDF Umum</button>
-      <button class="btn keluar" id="btnPdfSeroja" style="flex:1">PDF Seroja</button>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:10px">
       <button class="btn masuk" id="btnShare" style="flex:1">Bagikan Umum</button>
       <button class="btn masuk" id="btnShareSeroja" style="flex:1">Bagikan Seroja</button>
     </div>
@@ -1105,14 +1101,6 @@ function namaFilePdf() {
   const nama = ((karyawan.nama || '').trim().replace(/\s+/g, ' ') || 'Absensi');
   return nama + '_' + bulan + '_' + y + '.pdf';
 }
-function unduhPdf(seroja) {
-  const judulAsli = document.title;
-  document.title = namaFilePdf();
-  if (seroja) renderPrintSeroja(); else renderPrint();
-  window.print();
-  document.title = judulAsli;
-  renderPrint();
-}
 function muatImg(src) {
   return new Promise((res, rej) => {
     const im = new Image();
@@ -1301,8 +1289,6 @@ async function bagikanPdf(seroja) {
     msg.textContent = (e && e.name === 'AbortError') ? '' : 'Gagal membuat PDF: ' + (e && e.message ? e.message : e);
   }
 }
-el('btnPdf').onclick = () => unduhPdf(false);
-el('btnPdfSeroja').onclick = () => unduhPdf(true);
 el('btnShare').onclick = () => bagikanPdf(false);
 el('btnShareSeroja').onclick = () => bagikanPdf(true);
 el('btnPph').onclick = () => { renderPph(); window.print(); renderPrint(); };
