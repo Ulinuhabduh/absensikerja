@@ -391,16 +391,11 @@ function nextDate(key) {
   d.setDate(d.getDate() + 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
-// Salin baris ke tanggal berikutnya (tanggal+1) dengan data sama, tetap bisa diedit via klik baris.
+// Salin baris ke tanggal berikutnya (tanggal+1), termasuk tanggal yang belum lewat.
 function copyRow(srcKey) {
   const src = data[srcKey];
   if (!src) return;
   const target = nextDate(srcKey);
-  if (target > todayKey()) {
-    openManual(srcKey);
-    el('manMsg').textContent = 'Tidak bisa salin ke ' + target + ' karena melebihi hari ini.';
-    return;
-  }
   data[target] = Object.assign({}, src);
   save();
   viewMonth = target.slice(0, 7);
