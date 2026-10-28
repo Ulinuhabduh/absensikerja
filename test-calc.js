@@ -51,6 +51,9 @@ assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk:
 assert.strictEqual(jamLemburHari({ masuk: '17:12', keluar: '05:24', jadwalMasuk: '17:30', jadwalKeluar: '06:00', lembur: true }, '12'), 29);
 assert.strictEqual(jamLemburHari({ masuk: '17:29', keluar: '06:00', jadwalMasuk: '17:30', jadwalKeluar: '06:00' }, '12'), 6.5);
 assert.strictEqual(jamLemburHari({ masuk: '05:12', keluar: '18:03', jadwalMasuk: '05:30', jadwalKeluar: '18:00', lembur: true }, '12'), 29);
+// Roster 05:30-16:30: 10 jam kerja -> OT normal 3,5 atau lembur penuh 23.
+assert.strictEqual(jamLemburHari({ masuk: '05:20', keluar: '16:40', jadwalMasuk: '05:30', jadwalKeluar: '16:30' }, '12'), 3.5);
+assert.strictEqual(jamLemburHari({ masuk: '05:20', keluar: '16:40', jadwalMasuk: '05:30', jadwalKeluar: '16:30', lembur: true }, '12'), 23);
 // Roster separuh diabaikan -> ikut aktual
 assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30' }, '12'), 5.5);
 // Tanpa aktual (hanya roster) tidak dihitung
