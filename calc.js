@@ -89,14 +89,14 @@ function bersihkanRekaman(r) {
   if (jk) out.jadwalKeluar = jk[1].padStart(2, '0') + ':' + jk[2];
   if (r.libur) {
     out.libur = true;
-    if (r.ket === 'izin' || r.ket === 'alfa') out.ket = r.ket;
+    if (r.ket === 'izin' || r.ket === 'sakit' || r.ket === 'alfa') out.ket = r.ket;
   }
   return out;
 }
 
-const KET_LIBUR = { '': 'Libur', izin: 'Izin', alfa: 'Alfa' };
+const KET_LIBUR = { '': 'Libur', izin: 'Izin', sakit: 'Sakit', alfa: 'Alfa' };
 
-// Keterangan untuk lembar absensi: Masuk, Masuk (Lembur), Libur/Izin/Alfa
+// Keterangan untuk lembar absensi: Masuk, Masuk (Lembur), Libur/Izin/Sakit/Alfa
 function keterangan(rec) {
   if (!rec) return '';
   if (rec.libur) return KET_LIBUR[rec.ket] || 'Libur';
@@ -110,7 +110,7 @@ function upahPerJam(gajiPokok) {
 
 // Upah satu hari = pokok/21 + uang lembur hari itu (teoretis, tanpa batas).
 // Batas pokok diterapkan di agregat bulanan (ringkasan/akumulasi).
-// Berlaku sama untuk hari biasa maupun hari full lembur; libur/izin/alfa = 0.
+// Berlaku sama untuk hari biasa maupun hari full lembur; hari libur = 0.
 function pendapatanHari(rec, gajiPokok, mode) {
   if (!rec || rec.libur) return 0;
   if (!rec.masuk || !rec.keluar) return 0;
@@ -122,15 +122,16 @@ function pendapatanHari(rec, gajiPokok, mode) {
 // tapi akumulasi bagian pokok dibatasi maksimal gaji pokok;
 // selebihnya penambahan hanya dari uang lembur.
 // Alfa (libur + ket alfa) memotong 1/21 per hari walau sudah cap;
-// libur/izin biasa = 0. potonganOverride = koreksi manual (dipakai tes).
+// libur/izin/sakit = 0. potonganOverride = koreksi manual (dipakai tes).
 function ringkasanBulan(data, bulan, gajiPokok, mode, potonganOverride) {
-  let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0, hariAlfa = 0, hariIzin = 0;
+  let jam = 0, hariKerja = 0, hariLembur = 0, hariLibur = 0, hariAlfa = 0, hariIzin = 0, hariSakit = 0;
   for (const [tgl, rec] of Object.entries(data)) {
     if (!tgl.startsWith(bulan)) continue;
     if (rec.libur) {
       hariLibur++;
       if (rec.ket === 'alfa') hariAlfa++;
       else if (rec.ket === 'izin') hariIzin++;
+      else if (rec.ket === 'sakit') hariSakit++;
       continue;
     }
     if (!rec.masuk || !rec.keluar) continue;
@@ -147,7 +148,7 @@ function ringkasanBulan(data, bulan, gajiPokok, mode, potonganOverride) {
   const pot = potAlfa + potManual;
   const gajiKotor = Math.max(0, gajiHarian - pot);
   return {
-    jam, hariKerja, hariLembur, hariLibur, hariAlfa, hariIzin, upahPerJam: rate,
+    jam, hariKerja, hariLembur, hariLibur, hariAlfa, hariIzin, hariSakit, upahPerJam: rate,
     gajiHarian,
     uangLembur,
     gajiPokok,

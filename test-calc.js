@@ -54,6 +54,10 @@ assert.strictEqual(jamLemburHari({ masuk: '05:12', keluar: '18:03', jadwalMasuk:
 // Roster 05:30-16:30: 10 jam kerja -> OT normal 3,5 atau lembur penuh 23.
 assert.strictEqual(jamLemburHari({ masuk: '05:20', keluar: '16:40', jadwalMasuk: '05:30', jadwalKeluar: '16:30' }, '12'), 3.5);
 assert.strictEqual(jamLemburHari({ masuk: '05:20', keluar: '16:40', jadwalMasuk: '05:30', jadwalKeluar: '16:30', lembur: true }, '12'), 23);
+// Roster 05:30-17:30: 11 jam kerja -> OT normal 5,5 atau lembur penuh 27.
+assert.strictEqual(jamLemburHari({ masuk: '05:20', keluar: '17:40', jadwalMasuk: '05:30', jadwalKeluar: '17:30' }, '12'), 5.5);
+assert.strictEqual(jamLemburHari({ masuk: '05:20', keluar: '17:40', jadwalMasuk: '05:30', jadwalKeluar: '17:30', lembur: true }, '12'), 27);
+assert.strictEqual(jamLemburHari({ masuk: '05:20', keluar: '18:10', jadwalMasuk: '05:30', jadwalKeluar: '18:00' }, '12'), 6.5);
 // Roster separuh diabaikan -> ikut aktual
 assert.strictEqual(jamLemburHari({ masuk: '17:07', keluar: '05:01', jadwalMasuk: '17:30' }, '12'), 5.5);
 // Tanpa aktual (hanya roster) tidak dihitung
@@ -75,6 +79,8 @@ assert.deepStrictEqual(bersihkanRekaman({ masuk: 'abc', keluar: null, libur: tru
 assert.strictEqual(bersihkanRekaman(null), null);
 assert.strictEqual(bersihkanRekaman('2026-09-01'), null);
 assert.deepStrictEqual(bersihkanRekaman({ libur: true, ket: 'izin' }), { libur: true, ket: 'izin' });
+assert.deepStrictEqual(bersihkanRekaman({ libur: true, ket: 'sakit' }), { libur: true, ket: 'sakit' });
+assert.deepStrictEqual(bersihkanRekaman({ ket: 'sakit' }), {});
 assert.deepStrictEqual(bersihkanRekaman({ libur: true, ket: 'ngawur' }), { libur: true });
 
 // Keterangan lembar absensi
@@ -84,6 +90,7 @@ assert.strictEqual(keterangan({ masuk: '06:00', keluar: '17:00' }), 'Masuk');
 assert.strictEqual(keterangan({ masuk: '06:00', keluar: '17:00', lembur: true }), 'Masuk (Lembur)');
 assert.strictEqual(keterangan({ libur: true }), 'Libur');
 assert.strictEqual(keterangan({ libur: true, ket: 'izin' }), 'Izin');
+assert.strictEqual(keterangan({ libur: true, ket: 'sakit' }), 'Sakit');
 assert.strictEqual(keterangan({ libur: true, ket: 'alfa' }), 'Alfa');
 
 // Upah harian = pokok/21 + uang lembur dinamis (hari kerja & full lembur sama)
@@ -115,6 +122,20 @@ assert.ok(Math.abs(s.uangLembur - rate * 26.5) < 1e-9);
 assert.strictEqual(s.gajiKotor, s.gajiHarian);
 assert.strictEqual(s.potonganAbsensi, 0);
 assert.ok(Math.abs(s.total - (s.gajiHarian + s.uangLembur)) < 1e-9);
+// Sakit diperlakukan seperti izin: termasuk hari libur, tanpa upah atau potongan alfa.
+const dataSakit = { '2026-09-01': { masuk: '06:00', keluar: '17:00' }, '2026-09-02': { libur: true, ket: 'sakit' } };
+const dataIzin = { '2026-09-01': { masuk: '06:00', keluar: '17:00' }, '2026-09-02': { libur: true, ket: 'izin' } };
+const sSakit = ringkasanBulan(dataSakit, '2026-09', GAJI_POKOK, '12');
+const sIzin = ringkasanBulan(dataIzin, '2026-09', GAJI_POKOK, '12');
+assert.strictEqual(sSakit.hariLibur, 1);
+assert.strictEqual(sSakit.hariSakit, 1);
+assert.strictEqual(sSakit.hariIzin, 0);
+assert.strictEqual(sSakit.hariAlfa, 0);
+assert.strictEqual(sSakit.potonganAlfa, 0);
+assert.strictEqual(sSakit.total, sIzin.total);
+assert.strictEqual(pendapatanHari(dataSakit['2026-09-02'], GAJI_POKOK, '12'), 0);
+assert.strictEqual(akumulasiHarian(dataSakit, '2026-09', GAJI_POKOK, '12')[1].upah, 0);
+assert.strictEqual(hitungGaji(dataSakit, '2026-09', GAJI_POKOK, 'TK/0', '12').hariSakit, 1);
 // Potongan manual (override) mengurangi gaji kotor dan total
 const sPot = ringkasanBulan(data, '2026-09', GAJI_POKOK, '12', 100000);
 assert.strictEqual(sPot.potonganAbsensi, 100000);
