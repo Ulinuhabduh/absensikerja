@@ -2,94 +2,156 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#16a34a">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2f7f5">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Absensi Harian</title>
 <style>
 :root{
-  --bg:#eef1f6; --card:#fff; --text:#18212f; --muted:#68748a;
-  --line:#e6eaf1; --green:#16a34a; --blue:#2f6fed; --amber:#b45309;
-  --amber-bg:#fef3c7; --slate-bg:#e2e8f0; --red:#dc2626;
+  --bg:#f2f7f5; --card:#fff; --text:#173632; --muted:#506a64;
+  --line:#dfebe7; --green:#087d68; --green-dark:#075b4e; --green-soft:#e7f5ef;
+  --blue:#246599; --amber:#8a550d; --amber-bg:#fff3d9; --slate-bg:#edf3f1; --red:#b63838;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-main{max-width:560px;margin:0 auto;padding:20px 14px 48px}
-.head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
-.head h1{margin:0}
-h1{font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 14px;text-align:center;font-weight:700}
-.ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:.75rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
-.ghost[aria-pressed="true"]{background:var(--slate-bg);color:#475569}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
-.date{text-align:center;font-size:1.05rem;font-weight:700;margin-bottom:16px}
-.times{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
-.time{background:var(--bg);border-radius:12px;padding:10px 4px;text-align:center}
-.time span{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:4px}
-.time strong{font-size:.98rem;font-variant-numeric:tabular-nums}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.btn{border:0;border-radius:12px;padding:16px;font-size:1rem;font-weight:700;color:#fff;cursor:pointer;transition:filter .15s}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.btn:not(:disabled):active{filter:brightness(.9)}
+[hidden]{display:none!important}
+body{margin:0;background:radial-gradient(ellipse at 50% 0,#e4f2ec 0,transparent 480px),var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+button,a{-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #26977e;outline-offset:2px}
+main{max-width:640px;margin:0 auto;padding:22px 16px calc(126px + env(safe-area-inset-bottom,0px))}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:30px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{display:grid;place-items:center;width:42px;height:42px;flex:none;background:var(--green-dark);border-radius:14px;color:#fff;box-shadow:0 5px 14px rgba(7,91,78,.16)}
+.brand-mark svg,.section-icon svg,.btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.head h1{margin:0;color:var(--text);font-size:.95rem;line-height:1.2;letter-spacing:-.02em}
+.brand-subtitle{display:block;margin-top:3px;color:var(--muted);font-size:.68rem;font-weight:600}
+.ghost{min-height:38px;background:rgba(255,255,255,.8);border:1px solid #d5e5df;border-radius:12px;padding:8px 11px;font-size:.72rem;font-weight:700;color:var(--green-dark);cursor:pointer;white-space:nowrap}
+.ghost[aria-pressed="true"]{background:var(--green-soft);border-color:#b7dfd0}
+.page-heading{margin:0 2px 20px}
+.page-kicker,.section-kicker{margin:0 0 5px;color:var(--green-dark);font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.page-title{margin:0;font-size:clamp(1.4rem,5vw,1.75rem);line-height:1.15;letter-spacing:-.035em}
+.page-title:focus{outline:none}
+.page-title:focus-visible{outline:3px solid #26977e;outline-offset:4px;border-radius:4px}
+#manualTitle:focus{outline:none}
+#manualTitle:focus-visible{outline:3px solid #26977e;outline-offset:4px;border-radius:4px}
+.page-description{margin:6px 0 0;color:var(--muted);font-size:.84rem;line-height:1.5}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 5px 20px rgba(22,65,54,.045)}
+.card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.card-heading h3,.card-heading h4{margin:0;color:var(--text);font-size:1rem;line-height:1.35;letter-spacing:-.02em}
+.card-heading p:not(.section-kicker){margin:5px 0 0;color:var(--muted);font-size:.75rem;line-height:1.5}
+.section-icon{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:13px;background:var(--green-soft);color:var(--green)}
+.date{margin:0;text-align:left;font-size:1.05rem;line-height:1.35;font-weight:750;letter-spacing:-.025em}
+.times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.time{min-width:0;min-height:76px;background:#f5f9f7;border:1px solid #e9f1ee;border-radius:14px;padding:11px 12px;text-align:left}
+.time span{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.68rem;font-weight:700;margin-bottom:6px}
+.time span::before{content:"";width:7px;height:7px;flex:none;border-radius:50%;background:#70b69f}
+.time:nth-child(2) span::before{background:#85a7bf}
+.time:nth-child(3) span::before{background:#dfb664}
+.time:nth-child(4) span::before{background:#84b3a0}
+.time strong{display:block;overflow-wrap:anywhere;font-size:1.05rem;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border:1px solid transparent;border-radius:12px;padding:12px 14px;font-size:.86rem;font-weight:750;line-height:1.25;text-align:center;color:#fff;cursor:pointer;transition:background-color .15s,box-shadow .15s,transform .15s}
+.btn svg{width:18px;height:18px;flex:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:not(:disabled):active{transform:translateY(1px)}
 .btn.masuk{background:var(--green)}
-.btn.keluar{background:var(--blue)}
-.btn.gray{background:var(--muted)}
-.btn.red{background:var(--red)}
+.btn.masuk:not(:disabled):hover{background:var(--green-dark)}
+.btn.keluar{background:#e8f3ef;border-color:#cfe5dc;color:var(--green-dark)}
+.btn.keluar:not(:disabled):hover,.btn.gray:hover{background:#dceee6}
+.btn.gray{background:#f1f7f4;border-color:#d9e9e2;color:var(--green-dark)}
+.btn.red{background:#fff4f3;border-color:#f0ceca;color:#a52f2f}
+.btn.red:hover{background:#fde8e5}
 .actions .btn{margin:0}
-.toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.toggle{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px;font-size:.9rem;font-weight:700;color:var(--muted);cursor:pointer}
-.toggle.active.lembur{background:var(--amber-bg);border-color:#f59e0b;color:var(--amber)}
-.toggle.active.libur{background:var(--slate-bg);border-color:#94a3b8;color:#475569}
-.toggle.active.shift{background:#e0f2fe;border-color:#0284c7;color:#0369a1}
-.hint{font-size:.75rem;color:var(--muted);margin:10px 2px 0;line-height:1.45}
-.mini{background:none;border:0;color:var(--blue);font-size:.72rem;cursor:pointer;text-decoration:underline;padding:0 0 0 2px}
-.summary .row em{font-style:normal;color:var(--muted);font-size:.68rem}
-.reset{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);font-size:.8rem;text-decoration:underline;cursor:pointer}
-input{width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-size:1rem;margin-bottom:10px;font-family:inherit;background:#fff;color:var(--text)}
-input:focus{outline:2px solid var(--blue);outline-offset:-1px}
-.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.month-nav strong{font-size:1rem}
-.month-nav button{border:1px solid var(--line);background:#fff;width:36px;height:36px;border-radius:10px;font-size:1.1rem;cursor:pointer;color:var(--text)}
-.month-nav button:disabled{opacity:.3;cursor:not-allowed}
+.group-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:20px 0 9px}
+.group-heading strong{font-size:.78rem;line-height:1.3}
+.group-heading span{color:var(--muted);font-size:.68rem;text-align:right}
+.toggles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.toggle{min-height:44px;border:1px solid #dceae4;background:#fff;border-radius:12px;padding:10px 8px;font-size:.8rem;font-weight:700;color:#49645d;cursor:pointer;transition:border-color .15s,background-color .15s}
+.toggle:hover{border-color:#a9cbbd;background:#f7fbf9}
+.toggle.active.lembur{background:var(--amber-bg);border-color:#e6bc6e;color:var(--amber)}
+.toggle.active.libur{background:#e9f2ef;border-color:#87b3a1;color:#1f6253}
+.toggle.active.shift{background:var(--green-soft);border-color:#57ad91;color:var(--green-dark)}
+.hint{font-size:.75rem;color:var(--muted);margin:10px 0 0;line-height:1.55}
+.hint:empty{display:none}
+.info-note{margin-top:16px;padding:12px 13px;border-radius:12px;background:#f4f8f6;color:#4d6b61}
+#gajiPrompt{margin:0 0 16px;padding:11px 12px;border-radius:12px;background:#f0f7f3}
+a{color:var(--green-dark)}
+.mini{display:inline-flex;align-items:center;min-height:30px;background:none;border:0;color:var(--green);font-size:.72rem;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0 3px}
+.reset{display:block;min-height:40px;margin:12px auto -4px;background:none;border:0;color:var(--muted);font-size:.75rem;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+input,select{max-width:100%;border:1px solid #d7e6e0;border-radius:11px;background:#fff;color:var(--text)}
+input{width:100%;min-width:0;min-height:48px;padding:11px 12px;font-size:1rem;margin-bottom:10px}
+input::placeholder{color:#899c95}
+select{min-height:44px;padding:9px 12px;font-size:.86rem}
+.field-label,.manual-grid label{display:block;color:#49645d;font-size:.75rem;font-weight:700;line-height:1.4}
+.field-label{margin-bottom:7px}
+.month-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding:12px 14px}
+.period-label{text-align:center;min-width:0}
+.period-label span{display:block;margin-bottom:2px;color:var(--muted);font-size:.65rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.month-nav strong{font-size:.95rem}
+.month-nav button{flex:none;border:1px solid var(--line);background:#f7faf8;width:42px;height:42px;border-radius:12px;font-size:1.25rem;cursor:pointer;color:var(--green-dark)}
+.month-nav button:hover:not(:disabled){background:var(--green-soft)}
+.month-nav button:disabled{opacity:.35;cursor:not-allowed}
 table{width:100%;border-collapse:collapse;font-size:.78rem}
-.table-wrap{overflow-x:auto;margin:0 -2px}
+.table-wrap{overflow-x:auto;margin:0 -4px;overscroll-behavior-x:contain}
 th{text-align:left;color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;padding:0 4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:8px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
-tr:last-child td{border-bottom:0}
+.table-wrap th{padding:10px 8px;color:#607a70;font-size:.63rem;letter-spacing:.055em}
+.table-wrap td{padding:10px 8px;font-size:.75rem}
+.table-wrap tr:last-child td{border-bottom:0}
 tr.clickable{cursor:pointer}
-tr.clickable:hover td{background:#f6f8fb}
+tr.clickable:hover td{background:#f4f9f6}
 tr.clickable.row-lembur td{background:var(--amber-bg)}
-tr.clickable.row-lembur:hover td{background:#fde68a}
-tr.clickable.row-libur td{background:#fee2e2}
-tr.clickable.row-libur:hover td{background:#fecaca}
-.outline{width:100%;margin-top:12px;background:#fff;border:1.5px dashed #cfd8e6;border-radius:12px;padding:12px;color:var(--muted);font-size:.85rem;font-weight:600;cursor:pointer}
-#manualForm{border-top:1px dashed var(--line);margin-top:12px;padding-top:14px}
-.manual-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.manual-grid label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+tr.clickable.row-lembur:hover td{background:#ffebbd}
+tr.clickable.row-libur td{background:#fff0ee}
+tr.clickable.row-libur:hover td{background:#ffe5e1}
+.row-link,.copy-action{border:0;background:none;color:var(--green-dark);cursor:pointer;font-size:.75rem;font-weight:750}
+.row-link{padding:5px 0;text-decoration:underline;text-decoration-color:#add1c2;text-underline-offset:3px}
+.copy-action{min-height:36px;padding:6px 10px;border-radius:9px;background:#eaf5ef}
+.copy-action:hover{background:#d7ede2}
+.outline{width:100%;min-height:48px;margin-top:16px;background:#f5faf7;border:1px dashed #a8d2c1;border-radius:12px;padding:12px;color:var(--green-dark);font-size:.82rem;font-weight:750;cursor:pointer}
+.outline:hover{background:var(--green-soft)}
+#manualForm{border-top:1px solid var(--line);margin-top:20px;padding-top:20px}
+.manual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
 .manual-grid label.full{grid-column:1/-1}
-.manual-grid input{margin:4px 0 0}
-.roster{font-size:.62rem;color:var(--muted)}
-.disiplin{font-size:.62rem;color:var(--red);font-weight:700}
+.manual-grid input{margin:6px 0 0}
+.roster{font-size:.68rem;color:var(--muted)}
+.disiplin{font-size:.68rem;color:var(--red);font-weight:700}
+.status-chip{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:999px;background:#f8dfa8;color:#714300;font-size:.65rem;font-weight:750}
 td.num,th.num{text-align:right}
-.empty{text-align:center;color:var(--muted);padding:18px 0}
-.badge{font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap}
-.badge.lembur{background:var(--amber-bg);color:var(--amber)}
-.badge.libur{background:var(--slate-bg);color:#475569}
-.summary{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
-.summary .row{display:flex;justify-content:space-between;padding:5px 0;font-size:.9rem}
+.empty-state{padding:26px 16px;border:1px dashed #d4e7dd;border-radius:14px;background:#f7faf8;text-align:center}
+.empty-state strong{display:block;margin-bottom:5px;color:var(--text);font-size:.85rem}
+.empty-state p{margin:0;color:var(--muted);font-size:.75rem;line-height:1.5}
+.summary .row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #edf3ef;font-size:.81rem;line-height:1.45}
 .summary .row span{color:var(--muted)}
-.summary .row.total{font-size:1.05rem;font-weight:800;border-top:1px dashed var(--line);margin-top:8px;padding-top:10px}
-.summary .row.total span{color:var(--text)}
-.summary .row.pot strong{font-weight:600;color:var(--red)}
-.summary .row.pot{border-top:1px dashed var(--line);padding-top:8px}
-.summary select{border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font-size:.82rem;font-family:inherit;background:#fff;color:var(--text)}
-.days{font-size:.78rem;color:var(--muted);margin-top:6px}
-.pph-note{background:#eef4ff;border:1px solid #dbe6fb;border-radius:10px;padding:9px 11px;color:#334155;margin:10px 0 0;font-size:.75rem;line-height:1.5}
-.ket-select{margin-top:10px}
-.thr-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.summary .row strong{min-width:0;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.summary .row.pot strong{font-weight:700;color:var(--red)}
+.summary .row em{display:inline-block;font-style:normal;color:var(--muted);font-size:.68rem}
+.summary .manual-grid{margin:18px 0 8px}
+.summary select{min-height:38px;font-size:.8rem}
+.pay-hero{margin:-2px -2px 22px;padding:20px;border-radius:16px;background:linear-gradient(135deg,#075d4e,#087f69);color:#fff}
+.pay-hero p{margin:0 0 7px;color:#effff8;font-size:.75rem;font-weight:650}
+.pay-hero strong{display:block;overflow-wrap:anywhere;font-size:clamp(1.45rem,6vw,1.9rem);letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.days{font-size:.72rem;color:#effff8;margin-top:9px;line-height:1.5}
+.pph-note{background:#eff7f3;border:1px solid #dceee5;border-radius:12px;padding:11px 12px;color:#375e50;margin:12px 0 0;font-size:.75rem;line-height:1.55}
+.ket-select{display:block;width:100%;margin-top:10px}
+.thr-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.82rem}
 .thr-item:last-child{border-bottom:0}
 .thr-item span{color:var(--muted)}
 .thr-item b{font-variant-numeric:tabular-nums}
+.share-block,.danger-zone{border-top:1px solid var(--line);margin-top:20px;padding-top:18px}
+.share-block .actions{margin:12px 0 0}
+.danger-zone .btn{width:100%}
+.bottom-nav{position:fixed;z-index:20;bottom:calc(12px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:608px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:6px;background:rgba(255,255,255,.97);border:1px solid #e0ebe6;border-radius:20px;box-shadow:0 10px 32px rgba(23,61,51,.16)}
+.bottom-nav a{min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;color:#617970;font-size:.65rem;font-weight:750;line-height:1.1;text-align:center;text-decoration:none}
+.bottom-nav a[aria-current="page"]{background:var(--green-soft);color:var(--green-dark)}
+.bottom-nav a:hover{background:#f1f7f4}
+.bottom-nav a[aria-current="page"]:hover{background:var(--green-soft)}
+.bottom-nav a:focus-visible{outline-offset:-3px}
+.bottom-nav svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media (min-width:480px){.times{grid-template-columns:repeat(4,minmax(0,1fr))}.card{padding:24px}.month-nav{padding:12px 16px}}
+@media (max-width:359px){.head{margin-bottom:24px}.page-heading{margin-bottom:16px}.card{padding:18px}.card-heading{margin-bottom:14px}.times{gap:6px;margin-bottom:12px}.time{min-height:65px;padding:9px 10px}.time span{margin-bottom:4px}#manualForm .manual-grid,.manual-grid.stack-small{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){.btn,.toggle{transition:none}}
 #printArea{display:none;padding:0 8mm}
 #printArea .p-title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.08em;margin:0 0 3mm}
 #printArea .p-meta{display:grid;grid-template-columns:1fr 1fr;gap:1mm 8mm;font-size:10pt;margin-bottom:2mm;padding-left:2mm}
@@ -97,7 +159,7 @@ td.num,th.num{text-align:right}
 #printArea .p-meta span{min-width:24mm;color:#333}
 #printArea table{width:100%;border-collapse:collapse;table-layout:fixed}
 #printArea th,#printArea td{border:1px solid #000;height:4.4mm;padding:0 1.5mm;font-size:8.5pt;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-#printArea th{background:#eee;font-size:8pt;text-align:center;text-transform:uppercase}
+#printArea th{background:#eee;color:#68748a;font-size:8pt;text-align:center;text-transform:uppercase}
 #printArea td.c{text-align:center}
 #printArea tr{page-break-inside:avoid}
 #printArea tr.row-lembur td{background:#fef3c7}
@@ -120,7 +182,7 @@ td.num,th.num{text-align:right}
 #printArea .p-meta-vert div{display:flex;gap:2mm}
 #printArea .p-meta-vert span{flex:0 0 26mm;color:#333}
 #printArea .pph{font-size:9.5pt;line-height:1.45}
-#printArea .pph h1{font-size:13pt;text-align:center;letter-spacing:.06em;margin:0 0 1mm}
+#printArea .pph h1{font-size:13pt;text-align:center;letter-spacing:.06em;margin:0 0 1mm;color:#68748a;text-transform:uppercase}
 #printArea .pph .sub{text-align:center;font-size:9pt;color:#333;margin-bottom:4mm}
 #printArea .pph h2{font-size:10pt;margin:3.5mm 0 1.5mm;border-bottom:.3mm solid #999;padding-bottom:.6mm}
 #printArea .pph p{margin:0 0 1.5mm}
@@ -136,8 +198,8 @@ td.num,th.num{text-align:right}
 #printArea .pph .kecil{font-size:8pt;color:#333}
 @page{size:A4 portrait;margin:8mm 10mm}
 @media print{
-  body{background:#fff}
-  main{display:none}
+  body{background:#fff;color:#18212f}
+  main,.bottom-nav{display:none}
   #printArea{display:block}
 }
 </style>
@@ -145,91 +207,114 @@ td.num,th.num{text-align:right}
 <body>
 <main>
   <div class="head">
-    <h1>Absensi Harian</h1>
-    <button class="ghost" id="btnHide" aria-pressed="false">Sembunyikan</button>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/></svg></div>
+      <div><h1>Absensi Harian</h1><span class="brand-subtitle">Catatan kerja pribadi</span></div>
+    </div>
+    <button class="ghost" id="btnHide" aria-label="Sembunyikan atau tampilkan angka absensi dan gaji" aria-pressed="false">Sembunyikan</button>
   </div>
 
-  <section class="card" id="gajiCard" hidden>
-    <div class="date">Gaji Pokok</div>
-    <input type="text" id="gajiInput" inputmode="numeric" placeholder="Contoh: 4.245.927">
-    <button class="btn masuk" id="btnGaji" style="width:100%">Simpan</button>
-    <p class="hint">Diisi sekali saja, dipakai untuk menghitung estimasi gaji tiap bulan.</p>
-    <p class="hint" id="gajiMsg"></p>
-  </section>
-
+  <div class="page" id="page-hari-ini" data-page-panel="hari-ini">
+  <div class="page-heading">
+    <p class="page-kicker">Absensi</p>
+    <h2 class="page-title" tabindex="-1">Hari Ini</h2>
+    <p class="page-description">Catat kehadiran dan atur jadwal kerjamu.</p>
+  </div>
   <section class="card">
-    <div class="date" id="todayDate"></div>
+    <div class="card-heading">
+      <div><p class="section-kicker">Ringkasan harian</p><h3 class="date" id="todayDate"></h3></div>
+      <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M8 15h3M14 15h2"/></svg></div>
+    </div>
     <div class="times">
       <div class="time"><span>Masuk</span><strong id="masukTime">--:--</strong></div>
       <div class="time"><span>Keluar</span><strong id="keluarTime">--:--</strong></div>
-      <div class="time"><span>Lembur</span><strong id="todayOt">0</strong></div>
-      <div class="time"><span>Upah</span><strong id="todayPay">0</strong></div>
+      <div class="time"><span>Lembur (jam)</span><strong id="todayOt">0</strong></div>
+      <div class="time"><span>Upah (Rp)</span><strong id="todayPay">0</strong></div>
     </div>
     <div class="actions">
-      <button class="btn masuk" id="btnMasuk">Masuk</button>
-      <button class="btn keluar" id="btnKeluar">Keluar</button>
+      <button class="btn masuk" id="btnMasuk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5M4 12h11M11 8l4 4-4 4"/></svg>Masuk</button>
+      <button class="btn keluar" id="btnKeluar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M9 12h11M16 8l4 4-4 4"/></svg>Keluar</button>
     </div>
-    <div class="toggles">
-      <button class="toggle lembur" id="btnLembur">Lembur</button>
-      <button class="toggle libur" id="btnLibur">Libur</button>
+    <p class="hint" id="gajiPrompt" hidden>Gaji pokok belum diisi. <a href="#gaji">Isi gaji pokok</a> untuk melihat estimasi upah.</p>
+    <div class="group-heading"><strong>Status hari ini</strong><span>Pilih jika diperlukan</span></div>
+    <div class="toggles" role="group" aria-label="Status hari ini">
+      <button class="toggle lembur" id="btnLembur" aria-pressed="false">Lembur</button>
+      <button class="toggle libur" id="btnLibur" aria-pressed="false">Libur</button>
     </div>
-    <div class="toggles" id="shiftBtns" style="margin-top:10px">
-      <button class="toggle shift" data-shift="06:00|17:00">06:00–17:00</button>
-      <button class="toggle shift" data-shift="05:30|18:00">05:30–18:00</button>
-      <button class="toggle shift" data-shift="17:30|06:00">17:30–06:00</button>
-      <button class="toggle shift" data-shift="06:00|16:30">06:00–16:30</button>
-      <button class="toggle shift" data-shift="05:30|16:30">05:30–16:30</button>
-      <button class="toggle shift" data-shift="05:30|17:30">05:30–17:30</button>
-    </div>
-    <select class="ket-select" id="ketLibur" hidden>
+    <select class="ket-select" id="ketLibur" aria-label="Keterangan libur hari ini" hidden>
       <option value="">Libur</option>
       <option value="izin">Izin</option>
       <option value="sakit">Sakit</option>
       <option value="alfa">Alfa</option>
     </select>
-    <p class="hint">Lembur: kerja di hari libur, hitungan jam khusus. Libur: hari tidak bekerja, jamnya tidak dihitung. Shift default 06:00–17:00, pilih yang lain bila beda supaya lembur ikut roster.</p>
+    <div class="group-heading"><strong>Roster kerja</strong><span>Pilih sesuai jadwal</span></div>
+    <div class="toggles" id="shiftBtns" role="group" aria-label="Roster kerja hari ini">
+      <button class="toggle shift" data-shift="06:00|17:00" aria-pressed="false">06:00–17:00</button>
+      <button class="toggle shift" data-shift="05:30|18:00" aria-pressed="false">05:30–18:00</button>
+      <button class="toggle shift" data-shift="17:30|06:00" aria-pressed="false">17:30–06:00</button>
+      <button class="toggle shift" data-shift="06:00|16:30" aria-pressed="false">06:00–16:30</button>
+      <button class="toggle shift" data-shift="05:30|16:30" aria-pressed="false">05:30–16:30</button>
+      <button class="toggle shift" data-shift="05:30|17:30" aria-pressed="false">05:30–17:30</button>
+    </div>
+    <p class="hint info-note">Lembur digunakan saat bekerja di hari libur. Libur berarti tidak bekerja. Roster default 06:00–17:00; pilih jadwal lain agar perhitungan lembur sesuai roster.</p>
     <button class="reset" id="btnReset">Reset hari ini</button>
   </section>
+  </div>
 
+  <div class="card month-nav" id="periodNav" hidden>
+    <button id="btnPrev" aria-label="Bulan sebelumnya">&#8249;</button>
+    <div class="period-label"><span>Periode</span><strong id="monthLabel" aria-live="polite"></strong></div>
+    <button id="btnNext" aria-label="Bulan berikutnya">&#8250;</button>
+  </div>
+
+  <div class="page" id="page-riwayat" data-page-panel="riwayat" hidden>
+  <div class="page-heading">
+    <p class="page-kicker">Catatan kerja</p>
+    <h2 class="page-title" tabindex="-1">Riwayat Absensi</h2>
+    <p class="page-description">Lihat, lengkapi, dan bagikan catatan kehadiranmu.</p>
+  </div>
   <section class="card">
-    <div class="month-nav">
-      <button id="btnPrev" aria-label="Bulan sebelumnya">&#8249;</button>
-      <strong id="monthLabel"></strong>
-      <button id="btnNext" aria-label="Bulan berikutnya">&#8250;</button>
+    <div class="card-heading">
+      <div><h3>Daftar kehadiran</h3><p>Ketuk tanggal atau baris untuk mengedit data.</p></div>
+      <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
     </div>
-    <div class="table-wrap">
-      <table>
+    <div class="empty-state" id="monthEmpty" hidden><strong>Belum ada catatan</strong><p>Tambahkan absensi untuk mulai melihat riwayat bulan ini.</p></div>
+    <div class="table-wrap" id="monthTable" hidden>
+      <table aria-label="Daftar kehadiran">
         <thead>
-          <tr><th>Tanggal</th><th>Jam</th><th class="num">Lembur</th><th class="num">Upah Rp</th><th class="num">Akumulasi</th><th></th></tr>
+          <tr><th>Tanggal</th><th>Aksi</th><th>Jam</th><th class="num">Lembur</th><th class="num">Upah Rp</th><th class="num">Akumulasi</th></tr>
         </thead>
         <tbody id="monthRows"></tbody>
       </table>
     </div>
-    <p class="hint">Baris kuning = lembur, baris merah = libur, teks merah = telat/pulang awal (hari normal pulang awal = fix 3,5).</p>
-    <button class="outline" id="btnManual">+ Isi / Edit Tanggal Manual</button>
+    <p class="hint" id="monthLegend" hidden>Geser tabel untuk melihat semua kolom. Kuning: lembur · Merah: libur · Teks merah: telat atau pulang awal. Hari normal pulang awal dihitung tetap 3,5.</p>
+    <button class="outline" id="btnManual" aria-controls="manualForm" aria-expanded="false">+ Isi / Edit Tanggal Manual</button>
     <div id="manualForm" hidden>
+      <div class="card-heading"><div><h4 id="manualTitle" tabindex="-1">Isi atau edit absensi</h4><p>Isi tanggal dan jam aktual, lalu sesuaikan roster.</p></div></div>
       <div class="manual-grid">
         <label class="full">Tanggal<input type="date" id="manDate"></label>
         <label>Masuk (aktual)<input type="time" id="manMasuk"></label>
         <label>Keluar (aktual)<input type="time" id="manKeluar"></label>
       </div>
-      <div class="toggles" id="manShiftBtns">
-        <button class="toggle shift" data-shift="06:00|17:00">06:00–17:00</button>
-        <button class="toggle shift" data-shift="05:30|18:00">05:30–18:00</button>
-        <button class="toggle shift" data-shift="17:30|06:00">17:30–06:00</button>
-        <button class="toggle shift" data-shift="06:00|16:30">06:00–16:30</button>
-        <button class="toggle shift" data-shift="05:30|16:30">05:30–16:30</button>
-        <button class="toggle shift" data-shift="05:30|17:30">05:30–17:30</button>
+      <div class="group-heading"><strong>Roster kerja</strong><span>Atau isi jam di bawah</span></div>
+      <div class="toggles" id="manShiftBtns" role="group" aria-label="Roster kerja manual">
+        <button class="toggle shift" data-shift="06:00|17:00" aria-pressed="false">06:00–17:00</button>
+        <button class="toggle shift" data-shift="05:30|18:00" aria-pressed="false">05:30–18:00</button>
+        <button class="toggle shift" data-shift="17:30|06:00" aria-pressed="false">17:30–06:00</button>
+        <button class="toggle shift" data-shift="06:00|16:30" aria-pressed="false">06:00–16:30</button>
+        <button class="toggle shift" data-shift="05:30|16:30" aria-pressed="false">05:30–16:30</button>
+        <button class="toggle shift" data-shift="05:30|17:30" aria-pressed="false">05:30–17:30</button>
       </div>
-      <div class="manual-grid" style="margin-top:8px">
+      <div class="manual-grid" style="margin-top:12px">
         <label>Roster masuk<input type="time" id="manJadwalMasuk"></label>
         <label>Roster keluar<input type="time" id="manJadwalKeluar"></label>
       </div>
-      <div class="toggles">
-        <button class="toggle lembur" id="manLembur">Lembur</button>
-        <button class="toggle libur" id="manLibur">Libur</button>
+      <div class="group-heading"><strong>Status</strong><span>Pilih jika diperlukan</span></div>
+      <div class="toggles" role="group" aria-label="Status absensi manual">
+        <button class="toggle lembur" id="manLembur" aria-pressed="false">Lembur</button>
+        <button class="toggle libur" id="manLibur" aria-pressed="false">Libur</button>
       </div>
-      <select class="ket-select" id="manKet" hidden>
+      <select class="ket-select" id="manKet" aria-label="Keterangan libur manual" hidden>
         <option value="">Libur</option>
         <option value="izin">Izin</option>
         <option value="sakit">Sakit</option>
@@ -240,8 +325,44 @@ td.num,th.num{text-align:right}
         <button class="btn gray" id="manCancel">Tutup</button>
       </div>
       <button class="btn red" id="manHapus" style="width:100%;margin-top:10px" hidden>Hapus tanggal ini</button>
-      <p class="hint" id="manMsg"></p>
+      <p class="hint" id="manMsg" role="status"></p>
     </div>
+    <div class="share-block">
+      <div class="group-heading" style="margin:0"><strong>Bagikan laporan</strong><span>Format PDF</span></div>
+      <div class="actions">
+        <button class="btn masuk" id="btnShare">Bagikan Umum</button>
+        <button class="btn gray" id="btnShareSeroja">Bagikan Seroja</button>
+      </div>
+      <p class="hint" id="shareMsg" role="status"></p>
+      <p class="hint">Bagikan atau unduh lembar absensi untuk bulan yang dipilih.</p>
+    </div>
+  </section>
+  </div>
+
+  <div class="page" id="page-gaji" data-page-panel="gaji" hidden>
+  <div class="page-heading">
+    <p class="page-kicker">Pendapatan</p>
+    <h2 class="page-title" tabindex="-1">Ringkasan Gaji</h2>
+    <p class="page-description">Pantau estimasi pendapatan berdasarkan catatan kerja.</p>
+  </div>
+  <section class="card" id="gajiCard" hidden>
+    <div class="card-heading">
+      <div><h3>Gaji pokok</h3><p>Masukkan gaji pokok sebagai acuan perhitungan.</p></div>
+      <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 9h18M16 15h2"/></svg></div>
+    </div>
+    <label class="field-label" for="gajiInput">Gaji pokok per bulan</label>
+    <input type="text" id="gajiInput" inputmode="numeric" placeholder="Contoh: 4.245.927">
+    <button class="btn masuk" id="btnGaji" style="width:100%">Simpan</button>
+    <p class="hint">Diisi sekali saja, dipakai untuk menghitung estimasi gaji tiap bulan.</p>
+    <p class="hint" id="gajiMsg" role="status"></p>
+  </section>
+  <section class="card">
+    <div class="pay-hero">
+      <p>Estimasi gaji bersih</p>
+      <strong id="sumBersih">Rp0</strong>
+      <div class="days" id="sumHari"></div>
+    </div>
+    <div class="card-heading"><div><h3>Rincian gaji</h3><p>Perhitungan untuk periode yang dipilih.</p></div></div>
     <div class="summary">
       <div class="row"><span>Gaji pokok (acuan, &divide;21 per hari)<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
       <div class="row"><span>Upah per jam</span><strong id="sumRate">Rp0</strong></div>
@@ -257,7 +378,7 @@ td.num,th.num{text-align:right}
       <div class="row"><span>Bruto (kotor + lembur + selisih + THR)</span><strong id="sumBruto">Rp0</strong></div>
       <div class="row" id="sumThrRow" hidden><span>THR / Bonus (masuk bruto)</span><strong id="sumThr">+Rp0</strong></div>
       <div class="row"><span>Status PTKP</span>
-        <select id="selPtkp">
+        <select id="selPtkp" aria-label="Status PTKP">
           <option value="TK/0">TK/0</option>
           <option value="TK/1">TK/1</option>
           <option value="TK/2">TK/2</option>
@@ -272,32 +393,37 @@ td.num,th.num{text-align:right}
       <div class="row pot"><span>BPJS Kesehatan 1%</span><strong id="sumBpjsKes">-Rp0</strong></div>
       <div class="row pot"><span>PPh 21 <em id="sumPphInfo"></em><button class="mini" id="btnPph">penjelasan</button><button class="mini" id="btnPphData">perhitungan pph21</button></span><strong id="sumPph">-Rp0</strong></div>
       <p class="pph-note" id="sumPphNote" hidden></p>
-      <div class="row total"><span>Gaji bersih</span><strong id="sumBersih">Rp0</strong></div>
-      <div class="days" id="sumHari"></div>
-      <p class="hint">Tiap hari masuk (biasa maupun full lembur) = pokok/21 + uang lembur dari durasi hari itu, akumulasi pokok dibatasi maksimal gaji pokok — selebihnya hanya lembur yang nambah. Alfa memotong pokok/21 per hari; libur/izin/sakit = Rp0. Kolom Upah/Akumulasi = upah hari itu dan total berjalan. BPJS dari pokok acuan; PPh dari bruto.</p>
+      <p class="hint info-note">Tiap hari masuk (biasa maupun full lembur) = pokok/21 + uang lembur dari durasi hari itu, akumulasi pokok dibatasi maksimal gaji pokok — selebihnya hanya lembur yang nambah. Alfa memotong pokok/21 per hari; libur/izin/sakit = Rp0. Kolom Upah/Akumulasi = upah hari itu dan total berjalan. BPJS dari pokok acuan; PPh dari bruto.</p>
     </div>
-    <div style="display:flex;gap:10px;margin-top:16px">
-      <button class="btn masuk" id="btnShare" style="flex:1">Bagikan Umum</button>
-      <button class="btn masuk" id="btnShareSeroja" style="flex:1">Bagikan Seroja</button>
-    </div>
-    <p class="hint" id="shareMsg"></p>
-    <p class="hint">Terbuka dialog print &mdash; pilih "Save as PDF". Hasilnya 1 halaman A4, 31 baris tanggal.</p>
   </section>
 
   <section class="card">
-    <div class="date">THR / Bonus</div>
-    <div class="manual-grid">
+    <div class="card-heading">
+      <div><h3>THR / Bonus</h3><p>Tambahkan pendapatan untuk bulan terkait.</p></div>
+      <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M12 10v11M3 7h18v3H3zM12 7H8.5a2 2 0 1 1 2-3c.7 1 1.5 3 1.5 3ZM12 7h3.5a2 2 0 1 0-2-3c-.7 1-1.5 3-1.5 3Z"/></svg></div>
+    </div>
+    <div class="manual-grid stack-small">
       <label>Bulan<input type="month" id="thrBulan"></label>
       <label>Nominal<input type="text" id="thrNominal" inputmode="numeric" placeholder="Contoh: 4.245.927"></label>
     </div>
     <button class="btn masuk" id="btnThr" style="width:100%">Simpan</button>
     <div id="thrList"></div>
-    <p class="hint" id="thrMsg"></p>
+    <p class="hint" id="thrMsg" role="status"></p>
     <p class="hint">THR/bonus digabung ke bruto bulan itu, PPh-nya ikut tarif bruto gabungan. Isi nominal 0 untuk menghapus.</p>
   </section>
+  </div>
 
+  <div class="page" id="page-pengaturan" data-page-panel="pengaturan" hidden>
+  <div class="page-heading">
+    <p class="page-kicker">Preferensi</p>
+    <h2 class="page-title" tabindex="-1">Pengaturan</h2>
+    <p class="page-description">Kelola identitas dan simpan cadangan datamu.</p>
+  </div>
   <section class="card">
-    <div class="date">Data Karyawan (untuk PDF)</div>
+    <div class="card-heading">
+      <div><h3>Data karyawan</h3><p>Identitas ini digunakan pada laporan PDF dan nama backup.</p></div>
+      <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></div>
+    </div>
     <div class="manual-grid">
       <label class="full">Nama<input type="text" id="karNama"></label>
       <label>No. ID<input type="text" id="karNoid"></label>
@@ -307,18 +433,44 @@ td.num,th.num{text-align:right}
   </section>
 
   <section class="card">
-    <div class="date">Backup Data</div>
+    <div class="card-heading">
+      <div><h3>Backup data</h3><p>Simpan cadangan atau pindahkan ke perangkat lain.</p></div>
+      <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+    </div>
     <div class="actions">
-      <button class="btn masuk" id="btnExport">Download JSON</button>
-      <button class="btn gray" id="btnImport">Import JSON</button>
+      <button class="btn masuk" id="btnExport">Download</button>
+      <button class="btn gray" id="btnImport">Import</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="hint">Data tersimpan di browser ini. Unduh file JSON untuk backup / pindah perangkat. Import akan mengganti seluruh data dengan isi file.</p>
-    <p class="hint" id="backupMsg"></p>
-    <button class="btn red" id="btnUserBaru" style="width:100%;margin-top:14px">Buat User Baru (Kosongkan Data)</button>
-    <p class="hint">Menghapus semua absensi, gaji pokok, THR, potongan, selisih, dan data karyawan di browser ini supaya bisa diperagakan dari nol. Unduh backup JSON dulu kalau datanya masih dipakai.</p>
+    <p class="hint info-note">Data tersimpan di browser ini. Unduh file JSON untuk backup atau pindah perangkat. Import akan mengganti seluruh data dengan isi file.</p>
+    <p class="hint" id="backupMsg" role="status"></p>
+    <div class="danger-zone">
+      <div class="group-heading" style="margin:0 0 10px"><strong>Mulai dari awal</strong></div>
+      <button class="btn red" id="btnUserBaru">Buat User Baru (Kosongkan Data)</button>
+      <p class="hint">Menghapus semua absensi, gaji pokok, THR, potongan, selisih, dan data karyawan di browser ini supaya bisa diperagakan dari nol. Unduh backup JSON dulu kalau datanya masih dipakai.</p>
+    </div>
   </section>
+  </div>
 </main>
+
+<nav class="bottom-nav" aria-label="Navigasi utama">
+  <a href="#hari-ini" data-page="hari-ini" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+    <span>Hari Ini</span>
+  </a>
+  <a href="#riwayat" data-page="riwayat">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 17h3"/></svg>
+    <span>Riwayat</span>
+  </a>
+  <a href="#gaji" data-page="gaji">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M16 15h2"/><circle cx="8" cy="15" r="1"/></svg>
+    <span>Gaji</span>
+  </a>
+  <a href="#pengaturan" data-page="pengaturan">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a8.8 8.8 0 0 0 .1-6l-2.1-.4-1.1-1.9.7-2-2.6-1.5-1.5 1.5h-2.2L9.2 3.2 6.6 4.7l.7 2-1.1 1.9-2.1.4a8.8 8.8 0 0 0 0 6l2.1.4 1.1 1.9-.7 2 2.6 1.5 1.5-1.5h2.2l1.5 1.5 2.6-1.5-.7-2 1.1-1.9z"/></svg>
+    <span>Pengaturan</span>
+  </a>
+</nav>
 
 <div id="printArea"></div>
 
@@ -337,6 +489,25 @@ const KEY_SEL = 'absensi-harian-selisih';
 try { localStorage.removeItem('absensi-harian-potongan'); } catch (e) {}
 
 const el = id => document.getElementById(id);
+const pagePanels = Array.from(document.querySelectorAll('[data-page-panel]'));
+const pageLinks = Array.from(document.querySelectorAll('.bottom-nav a[data-page]'));
+function renderPage(focus) {
+  const requested = location.hash.slice(1);
+  const active = pagePanels.find(p => p.dataset.pagePanel === requested) || el('page-hari-ini');
+  const heading = active.querySelector('.page-title');
+  const showPeriod = active.dataset.pagePanel === 'riwayat' || active.dataset.pagePanel === 'gaji';
+  pagePanels.forEach(p => { p.hidden = p !== active; });
+  pageLinks.forEach(a => {
+    if (a.dataset.page === active.dataset.pagePanel) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  if (showPeriod) heading.parentElement.after(el('periodNav'));
+  el('periodNav').hidden = !showPeriod;
+  if (focus) {
+    window.scrollTo(0, 0);
+    heading.focus({ preventScroll: true });
+  }
+}
 const rupiah = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 const rupiahRingkas = n => new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const angka = n => n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
@@ -414,9 +585,14 @@ function render() { renderToday(); renderMonth(); renderThrList(); renderPrint()
 
 const rahasia = v => tersembunyi ? '***' : v;
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function setToggleState(button, active) {
+  button.classList.toggle('active', active);
+  button.setAttribute('aria-pressed', active ? 'true' : 'false');
+}
 
 function renderToday() {
   const r = rec();
+  el('gajiPrompt').hidden = gajiPokok > 0;
   el('todayDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   el('masukTime').textContent = r.libur ? '-' : (r.masuk ? rahasia(r.masuk) : '--:--');
   el('keluarTime').textContent = r.libur ? '-' : (r.keluar ? rahasia(r.keluar) : '--:--');
@@ -424,13 +600,13 @@ function renderToday() {
   el('todayPay').textContent = rahasia(rupiahRingkas(pendapatanHari(r, gajiPokok, mode)));
   el('btnMasuk').disabled = !!r.masuk || !!r.libur;
   el('btnKeluar').disabled = !r.masuk || !!r.keluar || !!r.libur;
-  el('btnLembur').classList.toggle('active', !!r.lembur);
-  el('btnLibur').classList.toggle('active', !!r.libur);
+  setToggleState(el('btnLembur'), !!r.lembur);
+  setToggleState(el('btnLibur'), !!r.libur);
   el('ketLibur').hidden = !r.libur;
   el('ketLibur').value = r.ket || '';
   const shiftVal = (r.jadwalMasuk && r.jadwalKeluar) ? r.jadwalMasuk + '|' + r.jadwalKeluar : '';
   document.querySelectorAll('#shiftBtns button').forEach(b => {
-    b.classList.toggle('active', b.dataset.shift === shiftVal && !!shiftVal);
+    setToggleState(b, b.dataset.shift === shiftVal && !!shiftVal);
   });
 }
 
@@ -451,9 +627,9 @@ function renderMonth() {
   const rows = akumulasiHarian(data, viewMonth, gajiPokok, mode);
   const tbody = el('monthRows');
   tbody.innerHTML = '';
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Belum ada data</td></tr>';
-  }
+  el('monthEmpty').hidden = rows.length > 0;
+  el('monthTable').hidden = rows.length === 0;
+  el('monthLegend').hidden = rows.length === 0;
   for (const row of rows) {
     const r = row.rec;
     const label = new Date(row.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
@@ -461,9 +637,9 @@ function renderMonth() {
     if (!r.libur) {
       if (tersembunyi && (r.masuk || r.keluar)) jam = '***';
       else {
-        jam = (r.masuk || '--:--') + ' – ' + (r.keluar || '--:--');
+        jam = esc(r.masuk || '--:--') + ' – ' + esc(r.keluar || '--:--');
         if (r.jadwalMasuk && r.jadwalKeluar && (r.jadwalMasuk !== r.masuk || r.jadwalKeluar !== r.keluar))
-          jam += '<br><span class="roster">R ' + r.jadwalMasuk + '–' + r.jadwalKeluar + '</span>';
+          jam += '<br><span class="roster">R ' + esc(r.jadwalMasuk) + '–' + esc(r.jadwalKeluar) + '</span>';
         const dd = infoDisiplin(r);
         if (dd) {
           const kk = [];
@@ -472,12 +648,14 @@ function renderMonth() {
           jam += '<br><span class="disiplin">' + kk.join(' · ') + '</span>';
         }
       }
+      if (r.lembur) jam += '<br><span class="status-chip">Lembur</span>';
     }
     const tr = document.createElement('tr');
     tr.className = 'clickable' + (r.libur ? ' row-libur' : (r.lembur ? ' row-lembur' : ''));
     tr.onclick = () => openManual(row.tanggal);
-    tr.innerHTML = '<td>' + label + '</td><td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r, mode))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td>' +
-      '<td><button class="mini" data-copy="' + row.tanggal + '" title="Salin ke tanggal berikutnya">copy</button></td>';
+    tr.innerHTML = '<td><button class="row-link" aria-label="Edit absensi ' + esc(label) + '">' + esc(label) + '</button></td>' +
+      '<td><button class="copy-action" data-copy="' + esc(row.tanggal) + '" aria-label="Salin absensi ' + esc(label) + ' ke tanggal berikutnya" title="Salin ke tanggal berikutnya">Salin</button></td>' +
+      '<td>' + jam + '</td><td class="num">' + rahasia(angka(jamLemburHari(r, mode))) + '</td><td class="num">' + rahasia(rupiahRingkas(row.upah)) + '</td><td class="num">' + rahasia(rupiahRingkas(row.akumulasi)) + '</td>';
     tbody.appendChild(tr);
   }
   tbody.querySelectorAll('button[data-copy]').forEach(b => {
@@ -876,7 +1054,8 @@ function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'absensi-' + todayKey() + '.json';
+  const nama = String(karyawan.nama || '').trim().replace(/\s+/g, ' ').replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, '_') || 'Absensi';
+  a.download = nama + '_' + todayKey() + '.json';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -948,13 +1127,13 @@ el('btnHide').onclick = () => {
 };
 
 function syncManToggles() {
-  el('manLembur').classList.toggle('active', manLembur);
-  el('manLibur').classList.toggle('active', manLibur);
+  setToggleState(el('manLembur'), manLembur);
+  setToggleState(el('manLibur'), manLibur);
   el('manKet').hidden = !manLibur;
   el('manKet').value = manKet;
   const sv = (el('manJadwalMasuk').value && el('manJadwalKeluar').value) ? el('manJadwalMasuk').value + '|' + el('manJadwalKeluar').value : '';
   document.querySelectorAll('#manShiftBtns button').forEach(b => {
-    b.classList.toggle('active', b.dataset.shift === sv && !!sv);
+    setToggleState(b, b.dataset.shift === sv && !!sv);
   });
 }
 
@@ -978,11 +1157,18 @@ function openManual(k) {
   loadManual(k || '');
   el('manualForm').hidden = false;
   el('btnManual').hidden = true;
+  el('btnManual').setAttribute('aria-expanded', 'true');
   el('manMsg').textContent = '';
+  el('manualTitle').focus();
 }
 
 el('btnManual').onclick = () => openManual('');
-el('manCancel').onclick = () => { el('manualForm').hidden = true; el('btnManual').hidden = false; };
+el('manCancel').onclick = () => {
+  el('manualForm').hidden = true;
+  el('btnManual').hidden = false;
+  el('btnManual').setAttribute('aria-expanded', 'false');
+  el('btnManual').focus();
+};
 el('manDate').onchange = () => loadManual(el('manDate').value);
 el('manLembur').onclick = () => { manLembur = !manLembur; if (manLembur) { manLibur = false; manKet = ''; } syncManToggles(); };
 el('manLibur').onclick = () => { manLibur = !manLibur; if (manLibur) manLembur = false; else manKet = ''; syncManToggles(); };
@@ -1318,6 +1504,7 @@ el('btnUserBaru').onclick = () => {
   el('gajiMsg').textContent = '';
   el('manualForm').hidden = true;
   el('btnManual').hidden = false;
+  el('btnManual').setAttribute('aria-expanded', 'false');
   el('thrBulan').value = '';
   el('thrNominal').value = '';
   el('thrMsg').textContent = '';
@@ -1395,6 +1582,8 @@ el('selPtkp').value = ptkp;
 el('gajiCard').hidden = gajiPokok > 0;
 loadKaryawan();
 syncHideButton();
+window.addEventListener('hashchange', () => renderPage(true));
+renderPage(false);
 render();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
