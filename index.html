@@ -118,6 +118,7 @@ tr.clickable.row-libur:hover td{background:#ffe5e1}
 .manual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
 .manual-grid label.full{grid-column:1/-1}
 .manual-grid input{margin:6px 0 0}
+.manual-grid select{display:block;width:100%;margin-top:6px}
 .roster{font-size:.68rem;color:var(--muted)}
 .disiplin{font-size:.68rem;color:var(--red);font-weight:700}
 .status-chip{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:999px;background:#f8dfa8;color:#714300;font-size:.65rem;font-weight:750}
@@ -142,6 +143,9 @@ td.num,th.num{text-align:right}
 .thr-item:last-child{border-bottom:0}
 .thr-item span{color:var(--muted)}
 .thr-item b{font-variant-numeric:tabular-nums}
+.weekday-list{display:grid;gap:8px;margin:12px 0 0;padding:0;list-style:none}
+.weekday-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.8rem;font-weight:700;color:#49645d}
+.weekday-row button{min-height:40px}
 .share-block,.danger-zone{border-top:1px solid var(--line);margin-top:20px;padding-top:18px}
 .share-block .actions{margin:12px 0 0}
 .danger-zone .btn{width:100%}
@@ -303,6 +307,7 @@ td.num,th.num{text-align:right}
       </table>
     </div>
     <p class="hint" id="monthLegend" hidden>Upah dan akumulasi dalam rupiah. Kuning atau L: lembur · Merah: libur · ! atau teks merah: telat atau pulang awal · *: roster berbeda. Ketuk tanggal untuk melihat detail. Hari normal pulang awal dihitung tetap 3,5.</p>
+    <p class="hint" id="copyMsg" role="status"></p>
     <button class="outline" id="btnManual" aria-controls="manualForm" aria-expanded="false">+ Isi / Edit Tanggal Manual</button>
     <div id="manualForm" hidden>
       <div class="card-heading"><div><h4 id="manualTitle" tabindex="-1">Isi atau edit absensi</h4><p>Isi tanggal dan jam aktual, lalu sesuaikan roster.</p><p id="manDisiplin" hidden></p></div></div>
@@ -449,6 +454,23 @@ td.num,th.num{text-align:right}
 
   <section class="card">
     <div class="card-heading">
+      <div><h3>Lembur &amp; libur</h3><p>Pilih status dan harinya untuk salinan otomatis.</p></div>
+      <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 17h3"/></svg></div>
+    </div>
+    <div class="manual-grid stack-small">
+      <label>Status<select id="jadwalStatus"><option value="lembur">Lembur</option><option value="libur">Libur</option></select></label>
+      <label>Hari<select id="jadwalHari"><option value="">Pilih hari</option></select></label>
+    </div>
+    <button class="btn masuk" id="btnJadwal" style="width:100%">Simpan</button>
+    <p class="hint" id="jadwalKosong">Belum ada hari yang diatur.</p>
+    <ul class="weekday-list" id="jadwalMingguan"></ul>
+    <p class="hint" id="jadwalMsg" role="status"></p>
+    <p class="hint info-note">Jika ada jadwal, hari lain dianggap biasa saat disalin. Tanpa jadwal, status mengikuti baris asal. Catatan yang sudah ada tidak berubah.</p>
+    <p class="hint">Libur mengosongkan jam dan roster. Saat menyalin ke hari kerja, aplikasi memakai data kerja terakhir sebelum libur jika tersedia.</p>
+  </section>
+
+  <section class="card">
+    <div class="card-heading">
       <div><h3>Backup data</h3><p>Simpan cadangan atau pindahkan ke perangkat lain.</p></div>
       <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
     </div>
@@ -457,12 +479,12 @@ td.num,th.num{text-align:right}
       <button class="btn gray" id="btnImport">Import</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="hint info-note">Data tersimpan di browser ini. Unduh file JSON untuk backup atau pindah perangkat. Import akan mengganti seluruh data dengan isi file.</p>
+    <p class="hint info-note">Data tersimpan di browser ini. Unduh file JSON untuk backup atau pindah perangkat. Import akan mengganti data dengan isi file. Jadwal mingguan ikut tersimpan; file lama tanpa jadwal tetap menggunakan pengaturan saat ini.</p>
     <p class="hint" id="backupMsg" role="status"></p>
     <div class="danger-zone">
       <div class="group-heading" style="margin:0 0 10px"><strong>Mulai dari awal</strong></div>
       <button class="btn red" id="btnUserBaru">Buat User Baru (Kosongkan Data)</button>
-      <p class="hint">Menghapus semua absensi, gaji pokok, THR, potongan, selisih, dan data karyawan di browser ini supaya bisa diperagakan dari nol. Unduh backup JSON dulu kalau datanya masih dipakai.</p>
+      <p class="hint">Menghapus semua absensi, gaji pokok, THR, potongan, selisih, data karyawan, dan jadwal mingguan di browser ini supaya bisa diperagakan dari nol. Unduh backup JSON dulu kalau datanya masih dipakai.</p>
     </div>
   </section>
   </div>
@@ -501,6 +523,7 @@ const KEY_KARYAWAN = 'absensi-harian-karyawan';
 const KEY_MODE = 'absensi-harian-mode';
 const KEY_THR = 'absensi-harian-thr';
 const KEY_SEL = 'absensi-harian-selisih';
+const KEY_JADWAL = 'absensi-harian-jadwal-mingguan';
 try { localStorage.removeItem('absensi-harian-potongan'); } catch (e) {}
 
 const el = id => document.getElementById(id);
@@ -546,6 +569,19 @@ let thr = {};
 try { thr = JSON.parse(localStorage.getItem(KEY_THR)) || {}; } catch (e) { thr = {}; }
 let sel = {};
 try { sel = JSON.parse(localStorage.getItem(KEY_SEL)) || {}; } catch (e) { sel = {}; }
+const HARI_MINGGU = [[1, 'Senin'], [2, 'Selasa'], [3, 'Rabu'], [4, 'Kamis'], [5, 'Jumat'], [6, 'Sabtu'], [0, 'Minggu']];
+const STATUS_MINGGUAN = ['biasa', 'lembur', 'libur'];
+function validasiJadwalMingguan(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('jadwal mingguan tidak valid');
+  const result = {};
+  for (const [hari, status] of Object.entries(value)) {
+    if (!/^[0-6]$/.test(hari) || !STATUS_MINGGUAN.includes(status)) throw new Error('jadwal mingguan tidak valid');
+    result[hari] = status;
+  }
+  return result;
+}
+let jadwalMingguan = {};
+try { jadwalMingguan = validasiJadwalMingguan(JSON.parse(localStorage.getItem(KEY_JADWAL) || '{}')); } catch (e) { }
 const adjMap = () => ({ sel });
 let manLembur = false;
 let manLibur = false;
@@ -583,17 +619,58 @@ function nextDate(key) {
   d.setDate(d.getDate() + 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
+function kerjaSebelum(tanggal) {
+  let terakhir = '';
+  for (const [key, r] of Object.entries(data)) {
+    if (key >= tanggal || key <= terakhir || !/^\d{4}-\d{2}-\d{2}$/.test(key) || !r || typeof r !== 'object' || r.libur) continue;
+    if (!r.masuk && !r.keluar && !r.jadwalMasuk && !r.jadwalKeluar) continue;
+    const d = new Date(key + 'T12:00:00');
+    if (d.getFullYear() !== Number(key.slice(0, 4)) || d.getMonth() + 1 !== Number(key.slice(5, 7)) || d.getDate() !== Number(key.slice(8, 10))) continue;
+    terakhir = key;
+  }
+  return terakhir;
+}
+function renderJadwalMingguan() {
+  const namaStatus = { lembur: 'Lembur', libur: 'Libur', biasa: 'Biasa (pengaturan sebelumnya)' };
+  const hariAktif = HARI_MINGGU.filter(([hari]) => jadwalMingguan[hari]);
+  el('jadwalKosong').hidden = hariAktif.length > 0;
+  el('jadwalMingguan').innerHTML = hariAktif.map(([hari, nama]) =>
+    '<li class="weekday-row"><span>' + nama + ' · ' + namaStatus[jadwalMingguan[hari]] + '</span>' +
+    '<button class="ghost" type="button" data-hapus-hari="' + hari + '" aria-label="Hapus jadwal ' + nama + '">Hapus</button></li>'
+  ).join('');
+}
 // Salin baris ke tanggal berikutnya (tanggal+1), termasuk tanggal yang belum lewat.
 function copyRow(srcKey) {
   const src = data[srcKey];
   if (!src) return;
   const target = nextDate(srcKey);
-  data[target] = Object.assign({}, src);
-  save();
+  el('copyMsg').textContent = '';
+  const sudahAda = Object.prototype.hasOwnProperty.call(data, target);
+  if (sudahAda && !confirm('Tanggal ' + target + ' sudah memiliki absensi. Timpa dengan salinan?')) return;
+  const status = jadwalMingguan[new Date(target + 'T00:00:00').getDay()] || (Object.keys(jadwalMingguan).length ? 'biasa' : '');
+  const hariKerja = status === 'biasa' || status === 'lembur';
+  const sumberKerja = src.libur && hariKerja ? kerjaSebelum(srcKey) : '';
+  const salinan = Object.assign({}, sumberKerja ? data[sumberKerja] : src);
+  if (src.libur && hariKerja && !sumberKerja) Object.assign(salinan, { masuk: null, keluar: null, jadwalMasuk: null, jadwalKeluar: null });
+  if (status === 'libur') Object.assign(salinan, { libur: true, lembur: false, ket: null, masuk: null, keluar: null, jadwalMasuk: null, jadwalKeluar: null });
+  else if (hariKerja) Object.assign(salinan, { libur: false, lembur: status === 'lembur', ket: null });
+  const sebelumnya = data[target];
+  data[target] = salinan;
+  try { save(); }
+  catch (e) {
+    if (sudahAda) data[target] = sebelumnya;
+    else delete data[target];
+    el('copyMsg').textContent = 'Salinan tidak tersimpan. Periksa penyimpanan browser lalu coba lagi.';
+    return;
+  }
   viewMonth = target.slice(0, 7);
   render();
   openManual(target);
-  el('manMsg').textContent = 'Disalin dari ' + srcKey + ' — silakan edit lalu Simpan.';
+  const pesanStatus = status ? ' Status otomatis: ' + status + '.' : '';
+  const pesanSumber = sumberKerja ? ' Jam dan roster diambil dari ' + sumberKerja + ' sebelum libur.'
+    : (src.libur && hariKerja ? ' Data kerja sebelum libur tidak ditemukan.' : '');
+  const pesanJam = hariKerja && (!salinan.masuk || !salinan.keluar) ? ' Lengkapi jam masuk dan keluar.' : '';
+  el('manMsg').textContent = 'Disalin dari ' + srcKey + '.' + pesanStatus + pesanSumber + pesanJam + ' Periksa dan ubah jika perlu.';
 }
 
 function render() { renderToday(); renderMonth(); renderThrList(); renderPrint(); }
@@ -1091,6 +1168,7 @@ function exportData() {
     thr,
     selisih: sel,
     karyawan,
+    jadwal_mingguan: jadwalMingguan,
     data,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1156,6 +1234,44 @@ el('btnReset').onclick = () => {
 };
 el('btnPrev').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); renderMonth(); };
 el('btnNext').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); renderMonth(); };
+
+HARI_MINGGU.forEach(([hari, nama]) => {
+  const option = document.createElement('option');
+  option.value = String(hari);
+  option.textContent = nama;
+  el('jadwalHari').appendChild(option);
+});
+function simpanJadwalMingguan(next, pesan) {
+  try {
+    localStorage.setItem(KEY_JADWAL, JSON.stringify(next));
+    jadwalMingguan = next;
+    renderJadwalMingguan();
+    el('jadwalMsg').textContent = pesan;
+    return true;
+  } catch (e) {
+    el('jadwalMsg').textContent = 'Jadwal tidak dapat disimpan di browser.';
+    return false;
+  }
+}
+el('btnJadwal').onclick = () => {
+  const hari = el('jadwalHari').value;
+  const status = el('jadwalStatus').value;
+  if (!/^[0-6]$/.test(hari)) {
+    el('jadwalMsg').textContent = 'Pilih hari terlebih dahulu.';
+    el('jadwalHari').focus();
+    return;
+  }
+  if (status !== 'lembur' && status !== 'libur') return;
+  const next = Object.assign({}, jadwalMingguan, { [hari]: status });
+  if (simpanJadwalMingguan(next, 'Jadwal tersimpan.')) el('jadwalHari').value = '';
+};
+el('jadwalMingguan').addEventListener('click', e => {
+  const button = e.target.closest('button[data-hapus-hari]');
+  if (!button || !el('jadwalMingguan').contains(button)) return;
+  const next = Object.assign({}, jadwalMingguan);
+  delete next[button.dataset.hapusHari];
+  if (simpanJadwalMingguan(next, 'Jadwal dihapus.')) el('jadwalHari').focus();
+});
 
 function syncHideButton() {
   el('btnHide').textContent = tersembunyi ? 'Tampilkan' : 'Sembunyikan';
@@ -1534,14 +1650,15 @@ el('btnPphData').onclick = () => { renderPphData(); window.print(); renderPrint(
 el('btnExport').onclick = exportData;
 
 el('btnUserBaru').onclick = () => {
-  if (!confirm('Hapus SEMUA data di browser ini dan mulai dari kosong?\n\nAbsensi, gaji pokok, THR, dan data karyawan akan hilang. Unduh backup JSON dulu kalau perlu.')) return;
-  [KEY, KEY_GAJI, KEY_PTKP, KEY_HIDE, KEY_KARYAWAN, KEY_MODE, KEY_THR, KEY_SEL, 'absensi-harian-potongan'].forEach(k => localStorage.removeItem(k));
+  if (!confirm('Hapus SEMUA data di browser ini dan mulai dari kosong?\n\nAbsensi, gaji pokok, THR, data karyawan, dan jadwal mingguan akan hilang. Unduh backup JSON dulu kalau perlu.')) return;
+  [KEY, KEY_GAJI, KEY_PTKP, KEY_HIDE, KEY_KARYAWAN, KEY_MODE, KEY_THR, KEY_SEL, KEY_JADWAL, 'absensi-harian-potongan'].forEach(k => localStorage.removeItem(k));
   data = {};
   gajiPokok = 0;
   ptkp = 'TK/0';
   thr = {};
   sel = {};
   karyawan = { nama: '', noid: '', dept: '', kerja: '' };
+  jadwalMingguan = {};
   mode = '12';
   tersembunyi = false;
   viewMonth = todayKey().slice(0, 7);
@@ -1555,7 +1672,12 @@ el('btnUserBaru').onclick = () => {
   el('thrBulan').value = '';
   el('thrNominal').value = '';
   el('thrMsg').textContent = '';
+  el('copyMsg').textContent = '';
+  el('jadwalMsg').textContent = '';
+  el('jadwalStatus').value = 'lembur';
+  el('jadwalHari').value = '';
   loadKaryawan();
+  renderJadwalMingguan();
   syncHideButton();
   render();
   el('backupMsg').textContent = 'Data dikosongkan. Siap dipakai user baru.';
@@ -1569,7 +1691,34 @@ el('importFile').onchange = async () => {
   try {
     const parsed = JSON.parse(await file.text());
     if (!confirm('Import akan MENGGANTI seluruh data di browser dengan isi file. Lanjut?')) return;
-    const n = importData(parsed);
+    const jadwalImpor = parsed && Object.prototype.hasOwnProperty.call(parsed, 'jadwal_mingguan')
+      ? validasiJadwalMingguan(parsed.jadwal_mingguan) : null;
+    const dataSebelumnya = data;
+    const tersimpanSebelumnya = localStorage.getItem(KEY);
+    let n, absensiDiubah = false;
+    try {
+      n = importData(parsed);
+      absensiDiubah = true;
+      if (jadwalImpor !== null) localStorage.setItem(KEY_JADWAL, JSON.stringify(jadwalImpor));
+    } catch (e) {
+      data = dataSebelumnya;
+      if (absensiDiubah) {
+        try {
+          if (tersimpanSebelumnya === null) localStorage.removeItem(KEY);
+          else localStorage.setItem(KEY, tersimpanSebelumnya);
+        } catch (rollbackError) {
+          throw new Error('penyimpanan gagal dan data sebelumnya tidak dapat dipulihkan; gunakan backup');
+        }
+      }
+      throw e;
+    }
+    if (jadwalImpor !== null) {
+      jadwalMingguan = jadwalImpor;
+      renderJadwalMingguan();
+      el('jadwalMsg').textContent = '';
+      el('jadwalStatus').value = 'lembur';
+      el('jadwalHari').value = '';
+    }
     if (parsed && Object.prototype.hasOwnProperty.call(parsed, 'gaji_pokok')) {
       gajiPokok = Number(parsed.gaji_pokok) || 0;
       localStorage.setItem(KEY_GAJI, String(gajiPokok));
@@ -1607,6 +1756,7 @@ el('importFile').onchange = async () => {
       localStorage.setItem(KEY_KARYAWAN, JSON.stringify(karyawan));
       loadKaryawan();
     }
+    el('copyMsg').textContent = '';
     render();
     el('backupMsg').textContent = n + ' tanggal berhasil diimport (data lama diganti).';
   } catch (e) {
@@ -1628,6 +1778,7 @@ if (!PTKP[ptkp]) ptkp = 'TK/0';
 el('selPtkp').value = ptkp;
 el('gajiCard').hidden = gajiPokok > 0;
 loadKaryawan();
+renderJadwalMingguan();
 syncHideButton();
 window.addEventListener('hashchange', () => renderPage(true));
 renderPage(false);
