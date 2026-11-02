@@ -284,14 +284,19 @@ function adjBaca(adjMap, bulan) {
   return { sel: Number(selMap[bulan]) || 0 };
 }
 
+// Estimasi komponen perusahaan untuk dasar pajak, bukan tambahan gaji tunai.
+function tambahanBrutoPajak(bruto, gajiPokok) {
+  return bruto > 0 ? Math.round(gajiPokok * 0.0174) + Math.round(gajiPokok * 0.003) + Math.round(gajiPokok * 0.037) + Math.round(gajiPokok * 0.02) : 0;
+}
+
 function brutoSetahunAktual(data, tahun, gajiPokok, mode, thrMap, adjMap) {
   const map = thrMap || {};
   let total = 0;
   for (let b = 1; b <= 12; b++) {
     const key = tahun + '-' + String(b).padStart(2, '0');
     const adj = adjBaca(adjMap, key);
-    total += ringkasanBulan(data, key, gajiPokok, mode).total + adj.sel;
-    if (map[key] > 0) total += map[key];
+    const bruto = ringkasanBulan(data, key, gajiPokok, mode).total + adj.sel + (map[key] > 0 ? map[key] : 0);
+    total += bruto + tambahanBrutoPajak(bruto, gajiPokok);
   }
   return total;
 }
@@ -306,7 +311,8 @@ function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap) 
     const adj = adjBaca(adjMap, key);
     const rutin = ringkasanBulan(data, key, gajiPokok, mode).total;
     const bruto = rutin + adj.sel + (map[key] > 0 ? map[key] : 0);
-    total += terRate(bruto, kat).tarif * bruto;
+    const dasar = bruto + tambahanBrutoPajak(bruto, gajiPokok);
+    total += terRate(dasar, kat).tarif * dasar;
   }
   return total;
 }
@@ -322,6 +328,8 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
   const nilaiThr = map[bulan] > 0 ? map[bulan] : 0;
   const rutin = s.total;
   const bruto = rutin + adj.sel + nilaiThr;
+  const tambahanPajak = tambahanBrutoPajak(bruto, gajiPokok);
+  const brutoPajak = bruto + tambahanPajak;
   const ptkpNilai = PTKP[ptkp] || 0;
   const kat = kategoriTer(ptkp);
   const desember = bulan.slice(5) === '12';
@@ -334,16 +342,16 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
     pphThr = 0;
     pph = pphTeratur;
   } else {
-    ter = terRate(bruto, kat);
-    pphTeratur = ter.tarif * bruto;
+    ter = terRate(brutoPajak, kat);
+    pphTeratur = ter.tarif * brutoPajak;
     pphThr = 0;
     pph = pphTeratur;
-    brutoSetahun = rutin * 12 + adj.sel + nilaiThr;
+    brutoSetahun = (rutin + tambahanBrutoPajak(rutin, gajiPokok)) * 12 + adj.sel + nilaiThr;
   }
   const ambangSetahun = ambangPajakSetahun(bpjsTk * 12, ptkpNilai);
   return Object.assign({}, s, {
     rutin,
-    bruto,
+    bruto, brutoPajak, tambahanPajak,
     selisih: adj.sel,
     thr: nilaiThr,
     bpjsTk, bpjsKes,

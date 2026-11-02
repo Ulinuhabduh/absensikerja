@@ -13,15 +13,15 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (new URL(e.request.url).origin !== location.origin) return;
   // Navigasi (index.html): network-first agar update web otomatis masuk saat online, cache saat offline
-  if (e.request.mode === 'navigate') {
+  if (e.request.mode === 'navigate' || new URL(e.request.url).pathname.endsWith('/calc.js')) {
     e.respondWith(
       fetch(e.request).then(res => {
         if (res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then(c => c.put('./index.html', copy));
+          caches.open(CACHE).then(c => c.put(e.request.mode === 'navigate' ? './index.html' : e.request, copy));
         }
         return res;
-      }).catch(() => caches.match('./index.html'))
+      }).catch(() => caches.match(e.request.mode === 'navigate' ? './index.html' : e.request))
     );
     return;
   }

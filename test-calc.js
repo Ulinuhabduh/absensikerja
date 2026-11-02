@@ -228,7 +228,7 @@ const gT = hitungGaji(dataBesar, '2026-10', GAJI_POKOK, 'TK/0', '12', { '2026-10
 assert.strictEqual(gB.pphThr, 0);
 assert.strictEqual(gT.pphThr, 0);
 assert.ok(Math.abs(gT.bruto - (gB.bruto + GAJI_POKOK)) < 1e-9);
-assert.ok(Math.abs(gT.pph - terRate(gT.bruto, 'A').tarif * gT.bruto) < 1e-9);
+assert.ok(Math.abs(gT.pph - terRate(gT.brutoPajak, 'A').tarif * gT.brutoPajak) < 1e-9);
 assert.ok(Math.abs(gT.bersih - (gT.bruto - gT.bpjsTk - gT.bpjsKes - gT.pph)) < 1e-9);
 
 // Sudah kena pajak -> tidak ada kekurangan
@@ -318,7 +318,7 @@ for (let b = 1; b <= 12; b++) {
 const gJan = hitungGaji(setahun, '2026-01', GAJI_POKOK, 'TK/0', '12', {});
 assert.strictEqual(gJan.metode, 'TER');
 assert.strictEqual(gJan.terKategori, 'A');
-assert.ok(Math.abs(gJan.pph - terRate(gJan.bruto, 'A').tarif * gJan.bruto) < 1e-9);
+assert.ok(Math.abs(gJan.pph - terRate(gJan.brutoPajak, 'A').tarif * gJan.brutoPajak) < 1e-9);
 const gDes = hitungGaji(setahun, '2026-12', GAJI_POKOK, 'TK/0', '12', {});
 assert.strictEqual(gDes.metode, 'rekonsiliasi');
 // Total setahun (TER Jan-Nov + rekonsiliasi Des) harus sama dengan PPh setahun progresif
@@ -326,9 +326,19 @@ let totalPph = 0, totalBruto = 0;
 for (let b = 1; b <= 12; b++) {
   const gb = hitungGaji(setahun, '2026-' + String(b).padStart(2, '0'), GAJI_POKOK, 'TK/0', '12', {});
   totalPph += gb.pph;
-  totalBruto += gb.bruto;
+  totalBruto += gb.brutoPajak;
 }
 assert.ok(Math.abs(totalBruto - brutoSetahunAktual(setahun, '2026', GAJI_POKOK, '12', {})) < 1e-6);
 assert.ok(Math.abs(totalPph - pph21Setahun(totalBruto, GAJI_POKOK * 0.03 * 12, 54000000)) < 1e-6);
+
+// Contoh slip: komponen perusahaan hanya menambah dasar pajak, bukan gaji tunai.
+const slip = hitungGaji({}, '2026-09', 4245927, 'TK/0', '12', {}, { sel: { '2026-09': 5757072 } });
+assert.strictEqual(slip.tambahanPajak, 73879 + 12738 + 157099 + 84919);
+assert.strictEqual(slip.brutoPajak, 6085707);
+assert.strictEqual(Math.round(slip.pph), 45643);
+assert.strictEqual(slip.bruto, 5757072);
+const kosong = hitungGaji({}, '2026-09', 4245927, 'TK/0', '12', {});
+assert.strictEqual(kosong.brutoPajak, 0);
+assert.strictEqual(brutoSetahunAktual({}, '2026', 4245927, '12', {}), 0);
 
 console.log('OK - semua perhitungan benar');
