@@ -237,7 +237,6 @@ td.num,th.num{text-align:right}
   <div class="page-heading">
     <p class="page-kicker">Absensi</p>
     <h2 class="page-title" tabindex="-1">Hari Ini</h2>
-    <p class="page-description">Catat kehadiran dan atur jadwal kerjamu.</p>
   </div>
   <section class="card">
     <div class="card-heading">
@@ -275,7 +274,7 @@ td.num,th.num{text-align:right}
       <button class="toggle shift" data-shift="05:30|16:30" aria-pressed="false">05:30–16:30</button>
       <button class="toggle shift" data-shift="05:30|17:30" aria-pressed="false">05:30–17:30</button>
     </div>
-    <p class="hint info-note">Lembur digunakan saat bekerja di hari libur. Libur berarti tidak bekerja. Roster default 06:00–17:00; pilih jadwal lain agar perhitungan lembur sesuai roster.</p>
+    <p class="hint info-note">Lembur: bekerja di hari libur. Roster awal 06:00–17:00; sesuaikan dengan jadwal kerja.</p>
     <button class="reset" id="btnReset">Reset hari ini</button>
   </section>
   </div>
@@ -290,7 +289,6 @@ td.num,th.num{text-align:right}
   <div class="page-heading">
     <p class="page-kicker">Catatan kerja</p>
     <h2 class="page-title" tabindex="-1">Riwayat Absensi</h2>
-    <p class="page-description">Lihat, lengkapi, dan bagikan catatan kehadiranmu.</p>
   </div>
   <section class="card">
     <div class="card-heading">
@@ -306,7 +304,7 @@ td.num,th.num{text-align:right}
         <tbody id="monthRows" role="rowgroup"></tbody>
       </table>
     </div>
-    <p class="hint" id="monthLegend" hidden>Upah dan akumulasi dalam rupiah. Kuning atau L: lembur · Merah: libur · ! atau teks merah: telat atau pulang awal · *: roster berbeda. Ketuk tanggal untuk melihat detail. Hari normal pulang awal dihitung tetap 3,5.</p>
+    <p class="hint" id="monthLegend" hidden>Kuning/L: lembur · Merah: libur · !/teks merah: telat atau pulang awal · *: roster berbeda. Hari biasa pulang awal tetap dihitung 3,5.</p>
     <p class="hint" id="copyMsg" role="status"></p>
     <button class="outline" id="btnManual" aria-controls="manualForm" aria-expanded="false">+ Isi / Edit Tanggal Manual</button>
     <div id="manualForm" hidden>
@@ -363,7 +361,6 @@ td.num,th.num{text-align:right}
   <div class="page-heading">
     <p class="page-kicker">Pendapatan</p>
     <h2 class="page-title" tabindex="-1">Ringkasan Gaji</h2>
-    <p class="page-description">Pantau estimasi pendapatan berdasarkan catatan kerja.</p>
   </div>
   <section class="card" id="gajiCard" hidden>
     <div class="card-heading">
@@ -373,7 +370,6 @@ td.num,th.num{text-align:right}
     <label class="field-label" for="gajiInput">Gaji pokok per bulan</label>
     <input type="text" id="gajiInput" inputmode="numeric" placeholder="Contoh: 4.245.927">
     <button class="btn masuk" id="btnGaji" style="width:100%">Simpan</button>
-    <p class="hint">Diisi sekali saja, dipakai untuk menghitung estimasi gaji tiap bulan.</p>
     <p class="hint" id="gajiMsg" role="status"></p>
   </section>
   <section class="card">
@@ -382,7 +378,7 @@ td.num,th.num{text-align:right}
       <strong id="sumBersih">Rp0</strong>
       <div class="days" id="sumHari"></div>
     </div>
-    <div class="card-heading"><div><h3>Rincian gaji</h3><p>Perhitungan untuk periode yang dipilih.</p></div></div>
+      <div class="card-heading"><div><h3>Rincian gaji</h3></div></div>
     <div class="summary">
       <div class="row"><span>Gaji pokok (acuan, &divide;21 per hari)<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
       <div class="row"><span>Upah per jam</span><strong id="sumRate">Rp0</strong></div>
@@ -413,7 +409,7 @@ td.num,th.num{text-align:right}
       <div class="row pot"><span>BPJS Kesehatan 1%</span><strong id="sumBpjsKes">-Rp0</strong></div>
       <div class="row pot"><span>PPh 21 <em id="sumPphInfo"></em><button class="mini" id="btnPph">penjelasan</button><button class="mini" id="btnPphData">perhitungan pph21</button></span><strong id="sumPph">-Rp0</strong></div>
       <p class="pph-note" id="sumPphNote" hidden></p>
-      <p class="hint info-note">Tiap hari masuk (biasa maupun full lembur) = pokok/21 + uang lembur dari durasi hari itu, akumulasi pokok dibatasi maksimal gaji pokok — selebihnya hanya lembur yang nambah. Alfa memotong pokok/21 per hari; libur/izin/sakit = Rp0. Kolom Upah/Akumulasi = upah hari itu dan total berjalan. BPJS dari pokok acuan; PPh dari bruto.</p>
+      <p class="hint info-note">Upah harian = pokok/21 + lembur; total pokok maksimal sebesar gaji pokok. Alfa memotong pokok/21; libur, izin dan sakit tidak menambah upah. BPJS dihitung dari pokok; PPh dari bruto pajak.</p>
     </div>
   </section>
 
@@ -429,7 +425,7 @@ td.num,th.num{text-align:right}
     <button class="btn masuk" id="btnThr" style="width:100%">Simpan</button>
     <div id="thrList"></div>
     <p class="hint" id="thrMsg" role="status"></p>
-    <p class="hint">THR/bonus digabung ke bruto bulan itu, PPh-nya ikut tarif bruto gabungan. Isi nominal 0 untuk menghapus.</p>
+    <p class="hint">THR/bonus masuk bruto pajak bulan terkait. Isi 0 untuk menghapus.</p>
   </section>
   </div>
 
@@ -437,7 +433,6 @@ td.num,th.num{text-align:right}
   <div class="page-heading">
     <p class="page-kicker">Preferensi</p>
     <h2 class="page-title" tabindex="-1">Pengaturan</h2>
-    <p class="page-description">Kelola identitas dan simpan cadangan datamu.</p>
   </div>
   <section class="card">
     <div class="card-heading">
@@ -465,8 +460,8 @@ td.num,th.num{text-align:right}
     <p class="hint" id="jadwalKosong">Belum ada hari yang diatur.</p>
     <ul class="weekday-list" id="jadwalMingguan"></ul>
     <p class="hint" id="jadwalMsg" role="status"></p>
-    <p class="hint info-note">Jika ada jadwal, hari lain dianggap biasa saat disalin. Tanpa jadwal, status mengikuti baris asal. Catatan yang sudah ada tidak berubah.</p>
-    <p class="hint">Libur mengosongkan jam dan roster. Saat menyalin ke hari kerja, aplikasi memakai data kerja terakhir sebelum libur jika tersedia.</p>
+    <p class="hint info-note">Saat ada jadwal, hari lain disalin sebagai hari biasa; tanpa jadwal, status mengikuti asal. Catatan lama tidak berubah.</p>
+    <p class="hint">Libur mengosongkan jam dan roster. Salinan ke hari kerja memakai data kerja terakhir sebelum libur, jika ada.</p>
   </section>
 
   <section class="card">
@@ -479,12 +474,12 @@ td.num,th.num{text-align:right}
       <button class="btn gray" id="btnImport">Import</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="hint info-note">Data tersimpan di browser ini. Unduh file JSON untuk backup atau pindah perangkat. Import akan mengganti data dengan isi file. Jadwal mingguan ikut tersimpan; file lama tanpa jadwal tetap menggunakan pengaturan saat ini.</p>
+    <p class="hint info-note">Data tersimpan di browser ini. Import mengganti data dengan isi backup. Jadwal ikut dicadangkan; backup lama tanpa jadwal mempertahankan jadwal saat ini.</p>
     <p class="hint" id="backupMsg" role="status"></p>
     <div class="danger-zone">
       <div class="group-heading" style="margin:0 0 10px"><strong>Mulai dari awal</strong></div>
       <button class="btn red" id="btnUserBaru">Buat User Baru (Kosongkan Data)</button>
-      <p class="hint">Menghapus semua absensi, gaji pokok, THR, potongan, selisih, data karyawan, dan jadwal mingguan di browser ini supaya bisa diperagakan dari nol. Unduh backup JSON dulu kalau datanya masih dipakai.</p>
+      <p class="hint">Hapus semua data dan pengaturan di browser ini. Download backup terlebih dahulu jika masih diperlukan.</p>
     </div>
   </section>
   </div>
