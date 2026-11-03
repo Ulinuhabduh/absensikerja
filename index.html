@@ -378,6 +378,10 @@ td.num,th.num{text-align:right}
       <strong id="sumBersih">Rp0</strong>
       <div class="days" id="sumHari"></div>
     </div>
+    <label class="field-label" for="slipBulan">Periode gaji</label>
+    <input type="month" id="slipBulan">
+    <button class="btn masuk" id="btnSlip" style="width:100%">Download slip gaji PDF</button>
+    <p class="hint" id="slipMsg" role="status"></p>
       <div class="card-heading"><div><h3>Rincian gaji</h3></div></div>
     <div class="summary">
       <div class="row"><span>Gaji pokok (acuan, &divide;21 per hari)<button class="mini" id="btnUbahGaji">ubah</button></span><strong id="sumPokok">Rp0</strong></div>
@@ -718,6 +722,7 @@ function ringkasanDisiplin(r) {
 
 function renderMonth() {
   const [y, m] = viewMonth.split('-').map(Number);
+  el('slipBulan').value = viewMonth;
   el('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
   const rows = akumulasiHarian(data, viewMonth, gajiPokok, mode);
@@ -1232,6 +1237,7 @@ el('btnReset').onclick = () => {
 };
 el('btnPrev').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); renderMonth(); };
 el('btnNext').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); renderMonth(); };
+el('slipBulan').onchange = e => { if (e.target.value) { viewMonth = e.target.value; renderMonth(); } };
 
 HARI_MINGGU.forEach(([hari, nama]) => {
   const option = document.createElement('option');
@@ -1613,6 +1619,97 @@ async function buatPdf(seroja) {
   }
   return { blob: doc.output('blob'), nama: namaFilePdf() };
 }
+function buatSlipPdf() {
+  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  const [tahun, bulan] = viewMonth.split('-').map(Number);
+  const periode = new Date(tahun, bulan - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
+  const teks = (s, x, y, size = 9, bold = false, align = 'left') => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size);
+    doc.text(String(s), x, y, { align });
+  };
+  const kotak = (x, y, w, h, warna) => { doc.setFillColor(...warna); doc.roundedRect(x, y, w, h, 2, 2, 'F'); };
+  const nilai = n => rupiah(n);
+  const pas = (s, x, y, w, size = 9) => {
+    doc.setFont('helvetica', 'bold');
+    let baris;
+    do { doc.setFontSize(size); baris = doc.splitTextToSize(String(s || '-'), w); if (baris.length <= 2) break; size -= 0.5; } while (size > 5);
+    doc.text(baris.slice(0, 2), x, y, { lineHeightFactor: 1.05 });
+  };
+  doc.setTextColor(255, 255, 255);
+  kotak(10, 10, 190, 19, [15, 40, 59]);
+  teks('ABSENSI HARIAN', 15, 21, 14, true);
+  teks('Slip Gaji - Estimasi', 195, 18, 12, true, 'right');
+  teks('Periode: ' + periode, 195, 24, 9, false, 'right');
+  doc.setTextColor(25, 42, 54);
+  kotak(10, 33, 190, 24, [238, 245, 247]);
+  [['NAMA KARYAWAN', karyawan.nama, 15, 38], ['JABATAN', karyawan.kerja, 80, 38], ['STATUS KERJA', '-', 151, 38], ['NO. ID', karyawan.noid, 15, 49], ['DEPARTEMEN', karyawan.dept, 80, 49], ['TANGGAL TRANSFER', '-', 151, 49]].forEach(([label, value, x, y]) => {
+    doc.setTextColor(42, 100, 150); teks(label, x, y, 7, true);
+    doc.setTextColor(25, 42, 54); pas(value, x, y + 4, x === 151 ? 43 : 60, 8);
+  });
+  kotak(10, 61, 190, 19, [219, 235, 248]);
+  doc.setTextColor(32, 95, 145); teks('GAJI BERSIH (TAKE HOME PAY)', 15, 69, 10, true); teks('Estimasi setelah lembur dan potongan', 15, 75, 8); teks(nilai(g.bersih), 195, 73, 15, true, 'right');
+  doc.setTextColor(25, 42, 54);
+  const penerimaan = [['Gaji harian (maks. pokok)', g.gajiHarian], ['Potongan absensi diterapkan', g.gajiKotor - g.gajiHarian], ['Upah lembur', g.uangLembur], ['Selisih / koreksi', g.selisih], ['THR / bonus', g.thr], ['Total penerimaan', g.bruto]];
+  const potongan = [['BPJS Kesehatan 1%', g.bpjsKes], ['BPJS Ketenagakerjaan 3%', g.bpjsTk], ['PPh 21 (estimasi)', g.pph], ['', null], ['', null], ['Total potongan', g.potongan]];
+  kotak(10, 84, 92, 8, [218, 239, 211]); kotak(108, 84, 92, 8, [250, 222, 222]);
+  teks('A. PENERIMAAN (EARNINGS)', 13, 89.5, 9, true); teks('B. POTONGAN (DEDUCTIONS)', 111, 89.5, 9, true);
+  penerimaan.forEach((row, i) => {
+    const yy = 98 + i * 6;
+    doc.setDrawColor(205, 205, 205); doc.line(10, yy + 1.5, 102, yy + 1.5); doc.line(108, yy + 1.5, 200, yy + 1.5);
+    teks(row[0], 13, yy, 8, i === 5); if (row[1] !== null) teks(nilai(row[1]), 99, yy, 8, i === 5, 'right');
+    teks(potongan[i][0], 111, yy, 8, i === 5);
+    if (potongan[i][1] !== null) teks(nilai(potongan[i][1]), 197, yy, 8, i === 5, 'right');
+  });
+  teks('PERHITUNGAN SELISIH / KOREKSI', 10, 138, 9, true);
+  kotak(10, 141, 190, 14, [234, 246, 230]);
+  teks('Selisih yang dicatat untuk bulan ini', 14, 147, 8, true);
+  teks(nilai(g.selisih), 195, 147, 9, true, 'right');
+  teks('Rincian komponen selisih belum tersedia di aplikasi.', 14, 152, 7);
+  teks('PERHITUNGAN BIAYA OVERTIME', 10, 162, 9, true);
+  kotak(10, 165, 190, 17, [244, 229, 244]);
+  teks('TARIF DASAR/JAM', 14, 171, 7, true); teks(nilai(g.upahPerJam), 14, 177, 9, true);
+  teks('JAM KONVERSI', 61, 171, 7, true); teks(angka(g.jam) + ' jam', 61, 177, 9, true);
+  teks('FORMULA', 104, 171, 7, true); teks('Pokok / 173 x jam', 104, 177, 8, true);
+  teks('TOTAL OVERTIME', 195, 171, 7, true, 'right'); teks(nilai(g.uangLembur), 195, 177, 9, true, 'right');
+  teks('MATRIKS RATE OVERTIME (TANGGAL & RATE)', 10, 189, 9, true);
+  const akhir = new Date(tahun, bulan, 0).getDate();
+  const rows = Array.from({ length: 8 }, (_, i) => {
+    const cells = [];
+    for (let col = 0; col < 4; col++) {
+      const d = i + 1 + col * 8;
+      const r = d <= akhir ? data[viewMonth + '-' + String(d).padStart(2, '0')] : null;
+      if (d === 32) cells.push('Total jam', angka(g.jam));
+      else cells.push(d <= akhir ? String(d) : '', d > akhir ? '' : !r ? '-' : r.libur ? (r.ket ? keterangan(r) : 'OFF') : r.masuk && r.keluar ? angka(jamLemburHari(r, mode)) : '-');
+    }
+    return cells;
+  });
+  doc.autoTable({ startY: 192, margin: { left: 10, right: 10 }, head: [['Tanggal', 'Rate', 'Tanggal', 'Rate', 'Tanggal', 'Rate', 'Tanggal', 'Rate']], body: rows,
+    theme: 'grid', styles: { fontSize: 7.5, cellPadding: 0.7, halign: 'center' }, headStyles: { fillColor: [15, 40, 59] } });
+  const y = doc.lastAutoTable.finalY + 6;
+  kotak(10, y, 190, 24, [219, 235, 248]);
+  const totalIuran = [0.04, 0.0174, 0.003, 0.037, 0.02].reduce((sum, rate) => sum + Math.round(gajiPokok * rate), 0);
+  teks('ESTIMASI IURAN PERUSAHAAN: ' + nilai(totalIuran), 14, y + 6, 8, true);
+  teks('Kesehatan 4%: ' + nilai(Math.round(gajiPokok * 0.04)) + '   JKK 1,74%: ' + nilai(Math.round(gajiPokok * 0.0174)) + '   JKM 0,3%: ' + nilai(Math.round(gajiPokok * 0.003)), 14, y + 13, 8);
+  teks('JHT 3,7%: ' + nilai(Math.round(gajiPokok * 0.037)) + '   JP 2%: ' + nilai(Math.round(gajiPokok * 0.02)), 14, y + 19, 8);
+  doc.setTextColor(70, 70, 70);
+  doc.setFontSize(8);
+  teks('Pokok acuan: ' + nilai(g.gajiPokok) + ' | Gaji harian: ' + nilai(g.gajiHarian) + ' | Potongan absensi: ' + nilai(g.potonganAbsensi), 10, y + 30, 8);
+  doc.text(doc.splitTextToSize('Estimasi berdasarkan data aplikasi, bukan slip resmi perusahaan. PPh dan iuran perusahaan menggunakan asumsi; konfirmasi kepada payroll. Data kosong tidak dianggap libur.', 190), 10, y + 36);
+  const aman = (karyawan.nama || 'Karyawan').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim() || 'Karyawan';
+  return { blob: doc.output('blob'), nama: 'Slip Gaji_' + aman + '_' + viewMonth + '.pdf' };
+}
+el('btnSlip').onclick = () => {
+  const msg = el('slipMsg');
+  if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.API.autoTable) { msg.textContent = 'PDF belum siap. Buka aplikasi saat online dan coba lagi.'; return; }
+  try {
+    const hasil = buatSlipPdf();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(hasil.blob); a.download = hasil.nama;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    msg.textContent = 'Slip estimasi berhasil diunduh.';
+  } catch (e) { msg.textContent = 'Gagal membuat slip: ' + (e.message || e); }
+};
+
 async function bagikanPdf(seroja) {
   const msg = el('shareMsg');
   if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {

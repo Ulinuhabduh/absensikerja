@@ -112,6 +112,16 @@ async function testDiBrowser() {
   try {
     if (!sessionStorage.getItem('jadwal-test-reload')) {
       cek([...el('jadwalStatus').options].map(option => option.value).join(',') === 'lembur,libur', 'pilihan status tidak sesuai');
+      el('slipBulan').value = '2026-09';
+      el('slipBulan').dispatchEvent(new Event('change'));
+      cek(viewMonth === '2026-09', 'periode slip tidak berubah');
+      const slipPdf = buatSlipPdf();
+      cek(slipPdf.blob.type === 'application/pdf' && slipPdf.blob.size > 1000 && slipPdf.nama.includes('2026-09'), 'slip PDF gagal dibuat');
+      const isiSlip = await slipPdf.blob.text();
+      cek(isiSlip.includes('PERHITUNGAN SELISIH') && isiSlip.includes('MATRIKS RATE OVERTIME') && isiSlip.includes('Total jam'), 'bagian slip belum lengkap');
+      cek(isiSlip.includes('bukan slip resmi perusahaan') && isiSlip.includes('STATUS KERJA'), 'keterangan slip tidak tersedia');
+      el('btnSlip').click();
+      cek(el('slipMsg').textContent.includes('berhasil'), 'tombol slip gagal');
       cek([...el('jadwalHari').options].map(option => option.value).join(',') === ',1,2,3,4,5,6,0', 'pilihan tujuh hari tidak tersedia');
       cek(!el('jadwalKosong').hidden && !Object.keys(jadwalMingguan).length, 'pengaturan awal mengubah perilaku salin');
       el('btnJadwal').click();
