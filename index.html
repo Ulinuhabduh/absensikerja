@@ -439,6 +439,16 @@ td.num,th.num{text-align:right}
     <h2 class="page-title" tabindex="-1">Pengaturan</h2>
   </div>
   <section class="card">
+    <div class="card-heading"><div><h3>Perusahaan per bulan</h3></div></div>
+    <div class="manual-grid stack-small">
+      <label>Bulan<input type="month" id="perusahaanBulan"></label>
+      <label>Perusahaan<select id="perusahaanPilihan"><option value="seroja">Seroja</option><option value="alfalah">Al Falah</option></select></label>
+    </div>
+    <button class="btn masuk" id="btnPerusahaan" style="width:100%">Simpan</button>
+    <p class="hint" id="perusahaanMsg" role="status"></p>
+    <p class="hint">Pilihan berlaku mulai bulan ini sampai diganti lagi. Sebelum pilihan pertama, perhitungan memakai Seroja. Gaji pokok, PTKP, dan identitas digunakan bersama untuk semua bulan.</p>
+  </section>
+  <section class="card">
     <div class="card-heading">
       <div><h3>Data karyawan</h3><p>Identitas ini digunakan pada laporan PDF dan nama backup.</p></div>
       <div class="section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></div>
@@ -523,6 +533,7 @@ const KEY_MODE = 'absensi-harian-mode';
 const KEY_THR = 'absensi-harian-thr';
 const KEY_SEL = 'absensi-harian-selisih';
 const KEY_JADWAL = 'absensi-harian-jadwal-mingguan';
+const KEY_PERUSAHAAN = 'absensi-harian-perusahaan-bulanan';
 try { localStorage.removeItem('absensi-harian-potongan'); } catch (e) {}
 
 const el = id => document.getElementById(id);
@@ -568,6 +579,17 @@ let thr = {};
 try { thr = JSON.parse(localStorage.getItem(KEY_THR)) || {}; } catch (e) { thr = {}; }
 let sel = {};
 try { sel = JSON.parse(localStorage.getItem(KEY_SEL)) || {}; } catch (e) { sel = {}; }
+function validasiPerusahaan(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('perusahaan bulanan tidak valid');
+  const hasil = {};
+  for (const [bulan, nama] of Object.entries(value)) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(bulan) || !['seroja', 'alfalah'].includes(nama)) throw new Error('perusahaan bulanan tidak valid');
+    hasil[bulan] = nama;
+  }
+  return hasil;
+}
+let perusahaanBulanan = {};
+try { perusahaanBulanan = validasiPerusahaan(JSON.parse(localStorage.getItem(KEY_PERUSAHAAN) || '{}')); } catch (e) { }
 const HARI_MINGGU = [[1, 'Senin'], [2, 'Selasa'], [3, 'Rabu'], [4, 'Kamis'], [5, 'Jumat'], [6, 'Sabtu'], [0, 'Minggu']];
 const STATUS_MINGGUAN = ['biasa', 'lembur', 'libur'];
 function validasiJadwalMingguan(value) {
@@ -645,7 +667,6 @@ function copyRow(srcKey) {
   const target = nextDate(srcKey);
   el('copyMsg').textContent = '';
   const sudahAda = Object.prototype.hasOwnProperty.call(data, target);
-  if (sudahAda && !confirm('Tanggal ' + target + ' sudah memiliki absensi. Timpa dengan salinan?')) return;
   const status = jadwalMingguan[new Date(target + 'T00:00:00').getDay()] || (Object.keys(jadwalMingguan).length ? 'biasa' : '');
   const hariKerja = status === 'biasa' || status === 'lembur';
   const sumberKerja = src.libur && hariKerja ? kerjaSebelum(srcKey) : '';
@@ -723,6 +744,8 @@ function ringkasanDisiplin(r) {
 function renderMonth() {
   const [y, m] = viewMonth.split('-').map(Number);
   el('slipBulan').value = viewMonth;
+  el('perusahaanBulan').value = viewMonth;
+  el('perusahaanPilihan').value = perusahaanUntukBulan(perusahaanBulanan, viewMonth);
   el('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
   const rows = akumulasiHarian(data, viewMonth, gajiPokok, mode);
@@ -782,7 +805,7 @@ function renderMonth() {
     b.onclick = e => { e.stopPropagation(); copyRow(b.dataset.copy); };
   });
 
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap(), perusahaanBulanan);
   el('sumPokok').textContent = rahasia(rupiah(g.gajiPokok));
   el('sumRate').textContent = rahasia(rupiah(g.upahPerJam));
   el('sumJam').textContent = rahasia(angka(g.jam) + ' jam');
@@ -807,17 +830,17 @@ function renderMonth() {
   el('sumBpjsKes').textContent = rahasia('-' + rupiah(g.bpjsKes));
   el('sumPph').textContent = rahasia('-' + rupiah(g.pphTeratur));
   el('sumPphInfo').textContent = g.metode === 'TER'
-    ? 'TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '% · Kategori ' + g.terKategori
-    : 'rekonsiliasi Desember';
+    ? (g.perusahaan === 'alfalah' ? 'Al Falah' : 'Seroja') + ' · TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '% · Kategori ' + g.terKategori
+    : (g.perusahaan === 'alfalah' ? 'Al Falah' : 'Seroja') + ' · rekonsiliasi Desember';
   const note = el('sumPphNote');
   if (g.metode === 'rekonsiliasi') {
     note.hidden = false;
     note.innerHTML = 'Rekonsiliasi Desember: PPh setahun ' + rahasia(rupiah(g.sudahPotong + g.pph)) +
       ' &minus; sudah dipotong Jan&ndash;Nov (TER) ' + rahasia(rupiah(g.sudahPotong)) +
-      ' = ' + rahasia(rupiah(g.pph)) + '.';
+      ' = ' + rahasia(rupiah(g.pph)) + '. Estimasi gabungan setahun; jika pindah pemberi kerja, konfirmasi ke payroll.';
   } else if (g.pph > 0) {
     note.hidden = false;
-    note.innerHTML = 'Estimasi dasar pajak ' + rahasia(rupiah(g.brutoPajak)) + ' termasuk JKK 1,74%, JKM 0,3%, JHT 3,7% dan JP 2% dari gaji pokok. Konfirmasi dasar ini kepada payroll.';
+    note.innerHTML = g.perusahaan === 'alfalah' ? 'Al Falah: estimasi PPh dari bruto tanpa tambahan iuran perusahaan.' : 'Seroja: estimasi dasar pajak ' + rahasia(rupiah(g.brutoPajak)) + ' termasuk JKK 1,74%, JKM 0,3%, JHT 3,7% dan JP 2% dari gaji pokok. Konfirmasi dasar ini kepada payroll.';
   } else if (!gajiPokok) {
     note.hidden = false;
     note.innerHTML = 'PPh 21 Rp0 karena <b>gaji pokok (acuan) belum diisi</b>.';
@@ -897,7 +920,7 @@ function renderPrint() {
   const [y, m] = viewMonth.split('-').map(Number);
   const periode = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   const rows = barisTabelAbsensi();
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap(), perusahaanBulanan);
   const modeLabel = 'dinamis per hari (durasi − 1 jam istirahat)';
   const baris = (label, nilai, cls) => '<div class="p-row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><b>' + nilai + '</b></div>';
   const labelPph = 'PPh 21 ' + (g.metode === 'TER'
@@ -1085,7 +1108,7 @@ function renderPph() {
 }
 
 function renderPphData() {
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap(), perusahaanBulanan);
   const [y, m] = viewMonth.split('-').map(Number);
   const periode = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   const bpjsSetahun = g.bpjsTk * 12;
@@ -1122,7 +1145,7 @@ function renderPphData() {
         tr('PPh 21 Desember', rupiah(g.pph), 'sub') +
       '</table>';
   }
-  let catatan = 'Dasar pajak mengasumsikan tambahan JKK 1,74%, JKM 0,3%, JHT 3,7% dan JP 2% dari gaji pokok pada bulan dengan bruto positif. Asumsi ini belum dikonfirmasi payroll dan bukan kepastian perlakuan pajak resmi. Januari&ndash;November memakai TER; Desember dihitung ulang setahun dengan tarif progresif. Iuran BPJS Kesehatan tidak dikurangkan dari penghasilan.';
+  let catatan = 'Seroja menambahkan estimasi JKK 1,74%, JKM 0,3%, JHT 3,7% dan JP 2% ke dasar pajak; Al Falah tidak. Perusahaan dipilih per bulan. Januari&ndash;November memakai TER; Desember merupakan estimasi gabungan setahun dengan tarif progresif. Jika pindah pemberi kerja, konfirmasi ke payroll. Asumsi belum dikonfirmasi dan bukan perhitungan resmi.';
   if (g.pph === 0) {
     if (!gajiPokok) catatan += ' PPh 21 Rp0 karena gaji pokok (acuan) belum diisi.';
     else if (g.bruto === 0 && g.thr === 0) catatan += ' PPh 21 Rp0 karena belum ada absensi tercatat di bulan ini.';
@@ -1172,6 +1195,7 @@ function exportData() {
     selisih: sel,
     karyawan,
     jadwal_mingguan: jadwalMingguan,
+    perusahaan_bulanan: perusahaanBulanan,
     data,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1238,6 +1262,19 @@ el('btnReset').onclick = () => {
 el('btnPrev').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); renderMonth(); };
 el('btnNext').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); renderMonth(); };
 el('slipBulan').onchange = e => { if (e.target.value) { viewMonth = e.target.value; renderMonth(); } };
+el('perusahaanBulan').onchange = e => { el('perusahaanPilihan').value = perusahaanUntukBulan(perusahaanBulanan, e.target.value); el('perusahaanMsg').textContent = ''; };
+el('btnPerusahaan').onclick = () => {
+  const bulan = el('perusahaanBulan').value;
+  const nama = el('perusahaanPilihan').value;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(bulan) || !['seroja', 'alfalah'].includes(nama)) { el('perusahaanMsg').textContent = 'Pilih bulan dan perusahaan.'; return; }
+  const next = Object.assign({}, perusahaanBulanan, { [bulan]: nama });
+  try { localStorage.setItem(KEY_PERUSAHAAN, JSON.stringify(next)); }
+  catch (e) { el('perusahaanMsg').textContent = 'Gagal menyimpan pilihan perusahaan.'; return; }
+  perusahaanBulanan = next;
+  viewMonth = bulan;
+  render();
+  el('perusahaanMsg').textContent = 'Perusahaan berlaku mulai ' + bulan + ' sampai pilihan berikutnya.';
+};
 
 HARI_MINGGU.forEach(([hari, nama]) => {
   const option = document.createElement('option');
@@ -1564,7 +1601,7 @@ async function buatPdf(seroja) {
   });
   cy = doc.lastAutoTable.finalY + 3;
   if (!seroja) {
-    const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
+    const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap(), perusahaanBulanan);
     const labelPph = 'PPh 21 ' + (g.metode === 'TER'
       ? '(TER ' + (g.terRate * 100).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + '%)'
       : '(Des)');
@@ -1623,7 +1660,7 @@ function buatSlipPdf() {
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const [tahun, bulan] = viewMonth.split('-').map(Number);
   const periode = new Date(tahun, bulan - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap());
+  const g = hitungGaji(data, viewMonth, gajiPokok, ptkp, mode, thr, adjMap(), perusahaanBulanan);
   const teks = (s, x, y, size = 9, bold = false, align = 'left') => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size);
     doc.text(String(s), x, y, { align });
@@ -1638,7 +1675,7 @@ function buatSlipPdf() {
   };
   doc.setTextColor(255, 255, 255);
   kotak(10, 10, 190, 19, [15, 40, 59]);
-  teks('ABSENSI HARIAN', 15, 21, 14, true);
+  teks(g.perusahaan === 'alfalah' ? 'AL FALAH' : 'SEROJA', 15, 21, 14, true);
   teks('Slip Gaji - Estimasi', 195, 18, 12, true, 'right');
   teks('Periode: ' + periode, 195, 24, 9, false, 'right');
   doc.setTextColor(25, 42, 54);
@@ -1688,10 +1725,15 @@ function buatSlipPdf() {
     theme: 'grid', styles: { fontSize: 7.5, cellPadding: 0.7, halign: 'center' }, headStyles: { fillColor: [15, 40, 59] } });
   const y = doc.lastAutoTable.finalY + 6;
   kotak(10, y, 190, 24, [219, 235, 248]);
-  const totalIuran = [0.04, 0.0174, 0.003, 0.037, 0.02].reduce((sum, rate) => sum + Math.round(gajiPokok * rate), 0);
-  teks('ESTIMASI IURAN PERUSAHAAN: ' + nilai(totalIuran), 14, y + 6, 8, true);
-  teks('Kesehatan 4%: ' + nilai(Math.round(gajiPokok * 0.04)) + '   JKK 1,74%: ' + nilai(Math.round(gajiPokok * 0.0174)) + '   JKM 0,3%: ' + nilai(Math.round(gajiPokok * 0.003)), 14, y + 13, 8);
-  teks('JHT 3,7%: ' + nilai(Math.round(gajiPokok * 0.037)) + '   JP 2%: ' + nilai(Math.round(gajiPokok * 0.02)), 14, y + 19, 8);
+  if (g.perusahaan === 'seroja') {
+    const totalIuran = [0.04, 0.0174, 0.003, 0.037, 0.02].reduce((sum, rate) => sum + Math.round(gajiPokok * rate), 0);
+    teks('ESTIMASI IURAN PERUSAHAAN: ' + nilai(totalIuran), 14, y + 6, 8, true);
+    teks('Kesehatan 4%: ' + nilai(Math.round(gajiPokok * 0.04)) + '   JKK 1,74%: ' + nilai(Math.round(gajiPokok * 0.0174)) + '   JKM 0,3%: ' + nilai(Math.round(gajiPokok * 0.003)), 14, y + 13, 8);
+    teks('JHT 3,7%: ' + nilai(Math.round(gajiPokok * 0.037)) + '   JP 2%: ' + nilai(Math.round(gajiPokok * 0.02)), 14, y + 19, 8);
+  } else {
+    teks('AL FALAH: PPh dihitung tanpa tambahan iuran perusahaan.', 14, y + 9, 8, true);
+    teks('Rincian iuran perusahaan tidak tersedia.', 14, y + 17, 8);
+  }
   doc.setTextColor(70, 70, 70);
   doc.setFontSize(8);
   teks('Pokok acuan: ' + nilai(g.gajiPokok) + ' | Gaji harian: ' + nilai(g.gajiHarian) + ' | Potongan absensi: ' + nilai(g.potonganAbsensi), 10, y + 30, 8);
@@ -1746,7 +1788,7 @@ el('btnExport').onclick = exportData;
 
 el('btnUserBaru').onclick = () => {
   if (!confirm('Hapus SEMUA data di browser ini dan mulai dari kosong?\n\nAbsensi, gaji pokok, THR, data karyawan, dan jadwal mingguan akan hilang. Unduh backup JSON dulu kalau perlu.')) return;
-  [KEY, KEY_GAJI, KEY_PTKP, KEY_HIDE, KEY_KARYAWAN, KEY_MODE, KEY_THR, KEY_SEL, KEY_JADWAL, 'absensi-harian-potongan'].forEach(k => localStorage.removeItem(k));
+  [KEY, KEY_GAJI, KEY_PTKP, KEY_HIDE, KEY_KARYAWAN, KEY_MODE, KEY_THR, KEY_SEL, KEY_JADWAL, KEY_PERUSAHAAN, 'absensi-harian-potongan'].forEach(k => localStorage.removeItem(k));
   data = {};
   gajiPokok = 0;
   ptkp = 'TK/0';
@@ -1754,6 +1796,7 @@ el('btnUserBaru').onclick = () => {
   sel = {};
   karyawan = { nama: '', noid: '', dept: '', kerja: '' };
   jadwalMingguan = {};
+  perusahaanBulanan = {};
   mode = '12';
   tersembunyi = false;
   viewMonth = todayKey().slice(0, 7);
@@ -1788,25 +1831,33 @@ el('importFile').onchange = async () => {
     if (!confirm('Import akan MENGGANTI seluruh data di browser dengan isi file. Lanjut?')) return;
     const jadwalImpor = parsed && Object.prototype.hasOwnProperty.call(parsed, 'jadwal_mingguan')
       ? validasiJadwalMingguan(parsed.jadwal_mingguan) : null;
+    const perusahaanImpor = parsed && Object.prototype.hasOwnProperty.call(parsed, 'perusahaan_bulanan')
+      ? validasiPerusahaan(parsed.perusahaan_bulanan) : null;
     const dataSebelumnya = data;
     const tersimpanSebelumnya = localStorage.getItem(KEY);
+    const jadwalSebelumnya = localStorage.getItem(KEY_JADWAL);
+    const perusahaanSebelumnya = localStorage.getItem(KEY_PERUSAHAAN);
     let n, absensiDiubah = false;
     try {
       n = importData(parsed);
       absensiDiubah = true;
       if (jadwalImpor !== null) localStorage.setItem(KEY_JADWAL, JSON.stringify(jadwalImpor));
+      if (perusahaanImpor !== null) localStorage.setItem(KEY_PERUSAHAAN, JSON.stringify(perusahaanImpor));
     } catch (e) {
       data = dataSebelumnya;
       if (absensiDiubah) {
         try {
           if (tersimpanSebelumnya === null) localStorage.removeItem(KEY);
           else localStorage.setItem(KEY, tersimpanSebelumnya);
+          if (jadwalImpor !== null && localStorage.getItem(KEY_JADWAL) !== jadwalSebelumnya) { if (jadwalSebelumnya === null) localStorage.removeItem(KEY_JADWAL); else localStorage.setItem(KEY_JADWAL, jadwalSebelumnya); }
+          if (perusahaanImpor !== null && localStorage.getItem(KEY_PERUSAHAAN) !== perusahaanSebelumnya) { if (perusahaanSebelumnya === null) localStorage.removeItem(KEY_PERUSAHAAN); else localStorage.setItem(KEY_PERUSAHAAN, perusahaanSebelumnya); }
         } catch (rollbackError) {
           throw new Error('penyimpanan gagal dan data sebelumnya tidak dapat dipulihkan; gunakan backup');
         }
       }
       throw e;
     }
+    if (perusahaanImpor !== null) perusahaanBulanan = perusahaanImpor;
     if (jadwalImpor !== null) {
       jadwalMingguan = jadwalImpor;
       renderJadwalMingguan();

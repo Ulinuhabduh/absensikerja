@@ -122,6 +122,19 @@ async function testDiBrowser() {
       cek(isiSlip.includes('bukan slip resmi perusahaan') && isiSlip.includes('STATUS KERJA'), 'keterangan slip tidak tersedia');
       el('btnSlip').click();
       cek(el('slipMsg').textContent.includes('berhasil'), 'tombol slip gagal');
+      el('perusahaanBulan').value = '2026-09';
+      el('perusahaanPilihan').value = 'alfalah';
+      el('btnPerusahaan').click();
+      cek(perusahaanBulanan['2026-09'] === 'alfalah' && JSON.parse(localStorage.getItem(KEY_PERUSAHAAN))['2026-09'] === 'alfalah', 'pilihan perusahaan tidak tersimpan');
+      cek((await buatSlipPdf().blob.text()).includes('AL FALAH'), 'slip tidak memakai perusahaan terpilih');
+      viewMonth = '2026-10'; renderMonth();
+      cek(el('perusahaanPilihan').value === 'alfalah' && perusahaanBulanan['2026-09'] === 'alfalah', 'pilihan tidak berlanjut ke bulan berikutnya');
+      el('perusahaanPilihan').value = 'seroja'; el('btnPerusahaan').click();
+      viewMonth = '2026-11'; renderMonth();
+      cek(el('perusahaanPilihan').value === 'seroja', 'pergantian perusahaan tidak berlanjut');
+      viewMonth = '2026-09'; renderMonth();
+      cek(el('perusahaanPilihan').value === 'alfalah', 'pergantian mengubah bulan sebelumnya');
+      localStorage.removeItem(KEY_PERUSAHAAN); perusahaanBulanan = {};
       cek([...el('jadwalHari').options].map(option => option.value).join(',') === ',1,2,3,4,5,6,0', 'pilihan tujuh hari tidak tersedia');
       cek(!el('jadwalKosong').hidden && !Object.keys(jadwalMingguan).length, 'pengaturan awal mengubah perilaku salin');
       el('btnJadwal').click();
@@ -183,14 +196,12 @@ async function testDiBrowser() {
       data['2026-12-29'] = { libur: true, ket: 'sakit' };
       copyRow('2026-12-29'); // Rabu tidak diatur: hari biasa
       cek(!data['2026-12-30'].libur && !data['2026-12-30'].lembur && !data['2026-12-30'].ket && data['2026-12-30'].masuk === '06:00', 'hari biasa setelah sakit tidak mengambil data kerja');
-      const asli = JSON.stringify(data['2026-12-30']);
-      window.confirm = () => false;
-      copyRow('2026-12-29');
-      cek(JSON.stringify(data['2026-12-30']) === asli, 'pembatalan menimpa data tujuan');
-      window.confirm = () => true;
+      window.confirm = () => { throw new Error('salin tidak boleh meminta konfirmasi'); };
       data['2026-12-29'] = kerja;
+      data['2026-12-30'] = { masuk: '08:00', keluar: '09:00' };
       copyRow('2026-12-29');
-      cek(data['2026-12-30'].masuk === kerja.masuk, 'konfirmasi timpa tidak berhasil');
+      cek(data['2026-12-30'].masuk === kerja.masuk, 'salin langsung tidak menimpa tujuan');
+      window.confirm = () => true;
 
       pilih(5, 'lembur');
       data['2026-12-31'] = kerja;
@@ -266,6 +277,7 @@ async function testDiBrowser() {
     HTMLAnchorElement.prototype.click = klik;
     const backup = JSON.parse(await blob.text());
     cek(backup.jadwal_mingguan['0'] === 'libur' && backup.jadwal_mingguan['6'] === 'lembur', 'backup tidak menyimpan jadwal');
+    cek(backup.perusahaan_bulanan && typeof backup.perusahaan_bulanan === 'object', 'backup tidak menyimpan perusahaan');
     pilih(0, 'lembur');
     await impor(backup);
     cek(el('backupMsg').textContent.includes('berhasil diimport'), 'import backup gagal');
@@ -274,6 +286,12 @@ async function testDiBrowser() {
 
     await impor({ data: { '2026-09-01': { masuk: '06:00', keluar: '17:00' } } });
     cek(el('backupMsg').textContent.includes('berhasil diimport') && jadwalMingguan['0'] === 'libur', 'backup lama tidak kompatibel');
+    await impor({ data: { '2026-09-01': { masuk: '06:00', keluar: '17:00' } }, perusahaan_bulanan: { '2026-09': 'alfalah' } });
+    cek(perusahaanBulanan['2026-09'] === 'alfalah' && JSON.parse(localStorage.getItem(KEY_PERUSAHAAN))['2026-09'] === 'alfalah', 'perusahaan backup tidak dipulihkan');
+    await impor({ data: { '2026-09-01': { masuk: '06:00', keluar: '17:00' } } });
+    cek(perusahaanBulanan['2026-09'] === 'alfalah', 'backup lama menghapus perusahaan');
+    await impor({ data: { '2026-10-01': { libur: true } }, perusahaan_bulanan: { '2026-13': 'alfalah' } });
+    cek(el('backupMsg').textContent.includes('Gagal import') && perusahaanBulanan['2026-09'] === 'alfalah', 'perusahaan backup tidak valid diterima');
     const sebelum = localStorage.getItem(KEY);
     for (const jadwal of [null, [], { 8: 'libur' }, { 1: 'alfa' }]) {
       await impor({ data: { '2026-10-01': { libur: true } }, jadwal_mingguan: jadwal });
@@ -298,6 +316,7 @@ async function testDiBrowser() {
     window.confirm = () => true;
     el('btnUserBaru').click();
     cek(localStorage.getItem(KEY_JADWAL) === null && Object.keys(jadwalMingguan).length === 0, 'user baru tidak menghapus jadwal');
+    cek(localStorage.getItem(KEY_PERUSAHAAN) === null && !Object.keys(perusahaanBulanan).length, 'user baru tidak menghapus perusahaan');
     cek(el('jadwalHari').value === '' && el('jadwalStatus').value === 'lembur' && !el('jadwalKosong').hidden, 'pilihan jadwal tidak direset');
     hasil('pass', 'Jadwal mingguan, salin, backup, dan reset berhasil.');
   } catch (e) {

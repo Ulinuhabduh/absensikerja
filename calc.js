@@ -285,24 +285,34 @@ function adjBaca(adjMap, bulan) {
 }
 
 // Estimasi komponen perusahaan untuk dasar pajak, bukan tambahan gaji tunai.
-function tambahanBrutoPajak(bruto, gajiPokok) {
-  return bruto > 0 ? Math.round(gajiPokok * 0.0174) + Math.round(gajiPokok * 0.003) + Math.round(gajiPokok * 0.037) + Math.round(gajiPokok * 0.02) : 0;
+function perusahaanUntukBulan(perusahaanMap, bulan) {
+  let awal = '', perusahaan = 'seroja';
+  for (const [key, value] of Object.entries(perusahaanMap || {})) {
+    if (key <= bulan && key > awal && (value === 'seroja' || value === 'alfalah')) {
+      awal = key;
+      perusahaan = value;
+    }
+  }
+  return perusahaan;
+}
+function tambahanBrutoPajak(bruto, gajiPokok, perusahaan) {
+  return perusahaan !== 'alfalah' && bruto > 0 ? Math.round(gajiPokok * 0.0174) + Math.round(gajiPokok * 0.003) + Math.round(gajiPokok * 0.037) + Math.round(gajiPokok * 0.02) : 0;
 }
 
-function brutoSetahunAktual(data, tahun, gajiPokok, mode, thrMap, adjMap) {
+function brutoSetahunAktual(data, tahun, gajiPokok, mode, thrMap, adjMap, perusahaanMap) {
   const map = thrMap || {};
   let total = 0;
   for (let b = 1; b <= 12; b++) {
     const key = tahun + '-' + String(b).padStart(2, '0');
     const adj = adjBaca(adjMap, key);
     const bruto = ringkasanBulan(data, key, gajiPokok, mode).total + adj.sel + (map[key] > 0 ? map[key] : 0);
-    total += bruto + tambahanBrutoPajak(bruto, gajiPokok);
+    total += bruto + tambahanBrutoPajak(bruto, gajiPokok, perusahaanUntukBulan(perusahaanMap, key));
   }
   return total;
 }
 
 // PPh yang sudah dipotong Januari–November (TER atas bruto gabungan incl. THR/bonus)
-function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap) {
+function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap, perusahaanMap) {
   const map = thrMap || {};
   const kat = kategoriTer(ptkp);
   let total = 0;
@@ -311,7 +321,7 @@ function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap) 
     const adj = adjBaca(adjMap, key);
     const rutin = ringkasanBulan(data, key, gajiPokok, mode).total;
     const bruto = rutin + adj.sel + (map[key] > 0 ? map[key] : 0);
-    const dasar = bruto + tambahanBrutoPajak(bruto, gajiPokok);
+    const dasar = bruto + tambahanBrutoPajak(bruto, gajiPokok, perusahaanUntukBulan(perusahaanMap, key));
     total += terRate(dasar, kat).tarif * dasar;
   }
   return total;
@@ -319,7 +329,7 @@ function pphTerpotongJanNov(data, tahun, gajiPokok, ptkp, mode, thrMap, adjMap) 
 
 // thrMap = { 'YYYY-MM': nominal } untuk semua THR/bonus
 // adjMap = { sel: { 'YYYY-MM': selisih/koreksi } }
-function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
+function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap, perusahaanMap) {
   const map = thrMap || {};
   const adj = adjBaca(adjMap, bulan);
   const s = ringkasanBulan(data, bulan, gajiPokok, mode);
@@ -328,7 +338,8 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
   const nilaiThr = map[bulan] > 0 ? map[bulan] : 0;
   const rutin = s.total;
   const bruto = rutin + adj.sel + nilaiThr;
-  const tambahanPajak = tambahanBrutoPajak(bruto, gajiPokok);
+  const perusahaan = perusahaanUntukBulan(perusahaanMap, bulan);
+  const tambahanPajak = tambahanBrutoPajak(bruto, gajiPokok, perusahaan);
   const brutoPajak = bruto + tambahanPajak;
   const ptkpNilai = PTKP[ptkp] || 0;
   const kat = kategoriTer(ptkp);
@@ -336,8 +347,8 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
   let pphTeratur, pphThr, pph, ter = null, brutoSetahun, sudahPotong = 0;
   if (desember) {
     // Masa pajak terakhir: hitung setahun penuh (progresif), kurangi yang sudah dipotong Jan–Nov
-    brutoSetahun = brutoSetahunAktual(data, bulan.slice(0, 4), gajiPokok, mode, map, adjMap);
-    sudahPotong = pphTerpotongJanNov(data, bulan.slice(0, 4), gajiPokok, ptkp, mode, map, adjMap);
+    brutoSetahun = brutoSetahunAktual(data, bulan.slice(0, 4), gajiPokok, mode, map, adjMap, perusahaanMap);
+    sudahPotong = pphTerpotongJanNov(data, bulan.slice(0, 4), gajiPokok, ptkp, mode, map, adjMap, perusahaanMap);
     pphTeratur = pph21Setahun(brutoSetahun, bpjsTk * 12, ptkpNilai) - sudahPotong;
     pphThr = 0;
     pph = pphTeratur;
@@ -346,12 +357,12 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
     pphTeratur = ter.tarif * brutoPajak;
     pphThr = 0;
     pph = pphTeratur;
-    brutoSetahun = (rutin + tambahanBrutoPajak(rutin, gajiPokok)) * 12 + adj.sel + nilaiThr;
+    brutoSetahun = (rutin + tambahanBrutoPajak(rutin, gajiPokok, perusahaan)) * 12 + adj.sel + nilaiThr;
   }
   const ambangSetahun = ambangPajakSetahun(bpjsTk * 12, ptkpNilai);
   return Object.assign({}, s, {
     rutin,
-    bruto, brutoPajak, tambahanPajak,
+    bruto, brutoPajak, tambahanPajak, perusahaan,
     selisih: adj.sel,
     thr: nilaiThr,
     bpjsTk, bpjsKes,
@@ -370,5 +381,5 @@ function hitungGaji(data, bulan, gajiPokok, ptkp, mode, thrMap, adjMap) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PEMBAGI_POTONGAN, TOLERANSI_MENIT, PTKP, TER, jamLemburNormal, jamLemburPenuh, jamLemburHari, infoDisiplin, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, kategoriTer, terRate, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, brutoSetahunAktual, pphTerpotongJanNov, hitungGaji };
+  module.exports = { PEMBAGI_JAM, JAM_KERJA_SEHARI, PEMBAGI_POTONGAN, TOLERANSI_MENIT, PTKP, TER, jamLemburNormal, jamLemburPenuh, jamLemburHari, infoDisiplin, bersihkanRekaman, keterangan, upahPerJam, pendapatanHari, ringkasanBulan, akumulasiHarian, kategoriTer, terRate, pph21Setahun, pkpSetahun, rincianLapisan, ambangPajakSetahun, brutoSetahunAktual, pphTerpotongJanNov, hitungGaji, perusahaanUntukBulan };
 }
